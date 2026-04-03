@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kids Stopwatch</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Timers View -->
+    <div id="timers-view" class="view active">
+      <div class="header">
+        <h1>Kids Stopwatch</h1>
+        <p class="subtitle">Friendly timers for each kid</p>
+      </div>
+      <div class="stopwatch-container" id="stopwatch-container"></div>
+    </div>
+
+    <!-- History View -->
+    <div id="history-view" class="view">
+      <div class="header">
+        <h1>History</h1>
+      </div>
+      <div class="history-content">
+        <section class="history-section">
+          <h2 class="section-header">This Week</h2>
+          <div class="weekly-grid" id="weekly-grid"></div>
+        </section>
+        <section class="history-section">
+          <h2 class="section-header">History</h2>
+          <div class="history-list" id="history-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar">
+      <button class="tab active" data-tab="timers">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>Timers</span>
+      </button>
+      <button class="tab" data-tab="history">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        <span>History</span>
+      </button>
+    </nav>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/clock.js"></script>
+  <script src="js/stopwatch.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
