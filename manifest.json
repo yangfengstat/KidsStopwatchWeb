@@ -1,0 +1,24 @@
+{
+  "name": "Kids Stopwatch",
+  "short_name": "KidsTimer",
+  "description": "Friendly exercise timers for kids with streak tracking",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5faff",
+  "theme_color": "#6bb0e8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

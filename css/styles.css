@@ -148,6 +148,16 @@ body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* #7: Pulsing glow on running card */
+.stopwatch-card.running {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 6px 10px rgba(0, 0, 0, var(--shadow-opacity)), 0 0 0 0 var(--glow-color, transparent); }
+  50% { box-shadow: 0 6px 10px rgba(0, 0, 0, var(--shadow-opacity)), 0 0 20px 4px var(--glow-color, transparent); }
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -222,6 +232,12 @@ body {
 .clock-container svg {
   width: 160px;
   height: 160px;
+}
+
+/* #6: Smooth clock hand transitions */
+.clock-container svg .second-hand,
+.clock-container svg .minute-hand {
+  transition: transform 0.1s linear;
 }
 
 /* === Time Display === */

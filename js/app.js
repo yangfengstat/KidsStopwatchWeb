@@ -20,6 +20,9 @@ const stopwatches = KIDS.map(kid => ({
 }));
 
 let intervalId = null;
+const originalTitle = 'Kids Stopwatch';
+// Track previous streak values to detect milestone transitions
+const prevStreaks = {};
 
 // === Rendering ===
 
@@ -154,6 +157,13 @@ function toggleStopwatch(index) {
       if (document.getElementById('history-view').classList.contains('active')) {
         renderHistory(history, KIDS, deleteHistoryEntry);
       }
+
+      // #1: Check for streak milestone and launch confetti
+      const newInfo = streakInfo(sw.name, history);
+      const prev = prevStreaks[sw.name] || 0;
+      if (newInfo.streak > prev && Confetti.isMilestone(newInfo.streak)) {
+        Confetti.launch();
+      }
     }
   } else {
     // Start
@@ -213,9 +223,13 @@ function tick() {
     }
   });
 
+  // #5: Update page title with running time
+  updatePageTitle();
+
   if (!anyRunning) {
     clearInterval(intervalId);
     intervalId = null;
+    updatePageTitle(); // Reset title when all stop
   }
 }
 
@@ -231,6 +245,17 @@ function updateStopwatchDisplay(index) {
   sw.elements.btnPrimary.innerHTML = sw.isRunning
     ? '&#10074;&#10074; Pause'
     : '&#9654; Start';
+
+  // #7: Pulsing glow on running card
+  if (sw.isRunning) {
+    sw.elements.card.classList.add('running');
+    sw.elements.card.style.setProperty('--glow-color', colorWithAlpha(sw.color, 0.3));
+  } else {
+    sw.elements.card.classList.remove('running');
+  }
+
+  // #5: Update page title with running timer
+  updatePageTitle();
 }
 
 function updateTimeDisplay(index) {
@@ -238,9 +263,21 @@ function updateTimeDisplay(index) {
   sw.elements.timeDisplay.textContent = formatTime(sw.time);
 }
 
+// #5: Show running timer in browser tab title
+function updatePageTitle() {
+  const running = stopwatches.filter(sw => sw.isRunning);
+  if (running.length > 0) {
+    const names = running.map(sw => `${sw.name} ${formatTime(sw.time)}`).join(' | ');
+    document.title = `\u25B6 ${names}`;
+  } else {
+    document.title = originalTitle;
+  }
+}
+
 function updateStreakDisplay(index) {
   const sw = stopwatches[index];
   const info = streakInfo(sw.name, history);
+  prevStreaks[sw.name] = info.streak; // #1: Track for milestone detection
   sw.elements.streakCount.textContent = info.streak + 'd';
   sw.elements.freezeCount.textContent = info.freezesLeft;
 }
@@ -289,6 +326,11 @@ function init() {
   setupTabs();
   renderStopwatchCards();
   setupDarkModeListener();
+
+  // #10: Register service worker for PWA/offline support
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
