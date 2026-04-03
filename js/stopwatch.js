@@ -45,7 +45,7 @@ function formatWeeklyTotal(time) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-// Streak calculation — mirrors ContentView.swift streakInfo + currentStreak
+// Streak calculation using purchased freezes (from gems) + 2 starter freezes
 function currentStreak(exerciseDayKeys, freezesAvailable) {
   if (exerciseDayKeys.size === 0) return 0;
 
@@ -75,45 +75,41 @@ function currentStreak(exerciseDayKeys, freezesAvailable) {
   return streak;
 }
 
-function streakInfo(kidName, history) {
-  const freezeTrackingStart = Storage.ensureFreezeTrackingStart();
-  const entries = history.filter(e => e.childName === kidName);
-
-  // Exercise days for streak
+function streakInfo(kidName, historyData) {
+  const entries = historyData.filter(e => e.childName === kidName);
   const exerciseDayKeys = new Set(entries.map(e => dateKey(new Date(e.timestamp))));
-  const totalSeconds = entries.reduce((sum, e) => sum + e.duration, 0);
-  const earnedFreezes = Math.floor(totalSeconds / (50 * 60));
-  const streak = currentStreak(exerciseDayKeys, 2 + earnedFreezes);
 
-  // Freeze tracking
+  // Freezes = 2 starter + purchased with gems
+  const purchasedFreezes = Storage.getPurchasedFreezes(kidName);
+  const totalFreezes = 2 + purchasedFreezes;
+
+  const streak = currentStreak(exerciseDayKeys, totalFreezes);
+
+  // Calculate remaining freezes by walking backwards (same logic)
+  const freezeTrackingStart = Storage.ensureFreezeTrackingStart();
   const today = startOfDay(new Date());
   const todayKey = dateKey(today);
-  const freezeEntries = entries.filter(e => new Date(e.timestamp) >= freezeTrackingStart);
-  const freezeExerciseDayKeys = new Set(freezeEntries.map(e => dateKey(new Date(e.timestamp))));
-  const freezeSeconds = freezeEntries.reduce((sum, e) => sum + e.duration, 0);
-  const freezeEarned = Math.floor(freezeSeconds / (50 * 60));
-  let freezesLeft = 2 + freezeEarned;
 
-  const candidateStartDay = freezeExerciseDayKeys.has(todayKey)
+  const candidateStartDay = exerciseDayKeys.has(todayKey)
     ? today
     : addDays(today, -1);
 
   const freezeStartDay = startOfDay(freezeTrackingStart);
-  if (candidateStartDay < freezeStartDay) {
-    return { streak, freezesLeft };
-  }
+  let freezesLeft = totalFreezes;
 
-  let currentDay = candidateStartDay;
-  for (let i = 0; i < 3650 && currentDay >= freezeStartDay; i++) {
-    const key = dateKey(currentDay);
-    if (freezeExerciseDayKeys.has(key)) {
-      // no change
-    } else if (freezesLeft > 0) {
-      freezesLeft--;
-    } else {
-      break;
+  if (candidateStartDay >= freezeStartDay) {
+    let currentDay = candidateStartDay;
+    for (let i = 0; i < 3650 && currentDay >= freezeStartDay; i++) {
+      const key = dateKey(currentDay);
+      if (exerciseDayKeys.has(key)) {
+        // no change
+      } else if (freezesLeft > 0) {
+        freezesLeft--;
+      } else {
+        break;
+      }
+      currentDay = addDays(currentDay, -1);
     }
-    currentDay = addDays(currentDay, -1);
   }
 
   return { streak, freezesLeft: Math.max(0, freezesLeft) };

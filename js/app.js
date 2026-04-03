@@ -158,11 +158,18 @@ function toggleStopwatch(index) {
         renderHistory(history, KIDS, deleteHistoryEntry);
       }
 
-      // #1: Check for streak milestone and launch confetti
-      const newInfo = streakInfo(sw.name, history);
-      const prev = prevStreaks[sw.name] || 0;
-      if (newInfo.streak > prev && Confetti.isMilestone(newInfo.streak)) {
+      // Check for new achievements and show toast + confetti
+      const newAchievements = checkAchievements(sw.name, history);
+      if (newAchievements.length > 0) {
         Confetti.launch();
+        showAchievementToast(sw.name, newAchievements);
+      } else {
+        // Still check for streak milestone confetti
+        const newInfo = streakInfo(sw.name, history);
+        const prev = prevStreaks[sw.name] || 0;
+        if (newInfo.streak > prev && Confetti.isMilestone(newInfo.streak)) {
+          Confetti.launch();
+        }
       }
     }
   } else {
@@ -282,6 +289,31 @@ function updateStreakDisplay(index) {
   sw.elements.freezeCount.textContent = info.freezesLeft;
 }
 
+// === Achievement Toast ===
+
+function showAchievementToast(kidName, achievements) {
+  // Remove any existing toast
+  const existing = document.querySelector('.ach-toast');
+  if (existing) existing.remove();
+
+  const gems = achievements.reduce((sum, a) => sum + a.gems, 0);
+  const names = achievements.map(a => `${a.icon} ${a.name}`).join(', ');
+
+  const toast = document.createElement('div');
+  toast.className = 'ach-toast';
+  toast.innerHTML = `${kidName}: ${names}<br><span style="font-size:0.85rem; opacity:0.8">+${gems} 💎 earned!</span>`;
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => toast.classList.add('show'));
+  });
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 500);
+  }, 3500);
+}
+
 // === History ===
 
 function deleteHistoryEntry(index) {
@@ -307,6 +339,9 @@ function setupTabs() {
 
       if (tab.dataset.tab === 'history') {
         renderHistory(history, KIDS, deleteHistoryEntry);
+      }
+      if (tab.dataset.tab === 'achievements') {
+        renderAchievementsView(KIDS, history);
       }
     });
   });

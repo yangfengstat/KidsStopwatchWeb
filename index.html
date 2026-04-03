@@ -40,6 +40,15 @@
       </div>
     </div>
 
+    <!-- Achievements View -->
+    <div id="achievements-view" class="view">
+      <div class="header">
+        <h1>Achievements</h1>
+        <p class="subtitle">Earn gems and redeem them for streak freezes</p>
+      </div>
+      <div id="achievements-content"></div>
+    </div>
+
     <!-- Tab Bar -->
     <nav class="tab-bar">
       <button class="tab active" data-tab="timers">
@@ -55,6 +64,15 @@
         </svg>
         <span>History</span>
       </button>
+      <button class="tab" data-tab="achievements">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7"/>
+          <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+        </svg>
+        <span>Achievements</span>
+      </button>
     </nav>
   </div>
 
@@ -62,6 +80,7 @@
   <script src="js/clock.js"></script>
   <script src="js/confetti.js"></script>
   <script src="js/stopwatch.js"></script>
+  <script src="js/achievements.js"></script>
   <script src="js/history.js"></script>
   <script src="js/app.js"></script>
 </body>
