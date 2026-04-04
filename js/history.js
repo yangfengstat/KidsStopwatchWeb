@@ -76,10 +76,37 @@ function renderHistoryList(history, kids, onDelete) {
     return;
   }
 
+  // Helper: get a YYYY-MM-DD key for a date
+  function dayKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  // Helper: human-readable day header label
+  function dayLabel(d) {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (dayKey(d) === dayKey(today)) return 'Today';
+    if (dayKey(d) === dayKey(yesterday)) return 'Yesterday';
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  }
+
+  let lastDayKey = null;
+
   for (let i = 0; i < history.length; i++) {
     const entry = history[i];
     const ts = new Date(entry.timestamp);
-    const weekday = ts.toLocaleDateString('en-US', { weekday: 'short' });
+    const thisDay = dayKey(ts);
+
+    // Insert sticky day header when the day changes
+    if (thisDay !== lastDayKey) {
+      lastDayKey = thisDay;
+      const header = document.createElement('div');
+      header.className = 'history-day-header';
+      header.textContent = dayLabel(ts);
+      list.appendChild(header);
+    }
+
     const time = ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     const color = kidColors[entry.childName] || 'rgb(59, 130, 246)';
     // Create rgba version for badge
@@ -89,14 +116,14 @@ function renderHistoryList(history, kids, onDelete) {
     const row = document.createElement('div');
     row.className = 'history-row';
 
-    // #8: Color-coded left accent bar
+    // Color-coded left accent bar
     row.style.borderLeft = `3px solid ${color.replace(')', ', 0.6)').replace('rgb', 'rgba')}`;
     row.style.paddingLeft = '12px';
 
     row.innerHTML = `
       <div class="history-row-info">
         <h3>${entry.childName}</h3>
-        <p>${weekday} ${time}</p>
+        <p>${time}</p>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span class="duration-badge" style="background: ${badgeFill}; border-color: ${badgeStroke}; color: ${color}">${formatDuration(entry.duration)}</span>

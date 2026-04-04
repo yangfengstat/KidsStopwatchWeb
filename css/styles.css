@@ -472,6 +472,19 @@ body {
   gap: 2px;
 }
 
+.history-day-header {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding: 12px 0 4px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 1;
+}
+
 .history-row {
   display: flex;
   align-items: flex-start;
