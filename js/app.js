@@ -365,6 +365,33 @@ function setupTabs() {
   });
 }
 
+// === Scroll Fade Hint (Achievements tab) ===
+
+function setupScrollFade() {
+  const fade = document.getElementById('ach-scroll-fade');
+  if (!fade) return;
+
+  function updateFade() {
+    const achView = document.getElementById('achievements-view');
+    if (!achView || !achView.classList.contains('active')) return;
+    const distFromBottom = document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+    fade.classList.toggle('hidden', distFromBottom < 80);
+  }
+
+  window.addEventListener('scroll', updateFade, { passive: true });
+  // Also update when tab switches to achievements
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.tab === 'achievements') {
+        fade.classList.remove('hidden');
+        requestAnimationFrame(updateFade);
+      } else {
+        fade.classList.add('hidden');
+      }
+    });
+  });
+}
+
 // === Dark Mode Listener ===
 
 function setupDarkModeListener() {
@@ -380,6 +407,7 @@ function init() {
   renderStopwatchCards();
   renderGemBar();
   setupDarkModeListener();
+  setupScrollFade();
 
   // #10: Register service worker for PWA/offline support
   if ('serviceWorker' in navigator) {

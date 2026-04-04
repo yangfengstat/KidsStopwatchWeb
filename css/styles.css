@@ -567,6 +567,21 @@ body {
 }
 
 /* === Achievements === */
+/* Scroll fade hint at bottom of Achievements tab */
+.scroll-fade-hint {
+  position: sticky;
+  bottom: 80px;
+  height: 64px;
+  margin-top: -64px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--bg-primary));
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+.scroll-fade-hint.hidden {
+  opacity: 0;
+}
+
 .ach-kid-section {
   margin-bottom: 32px;
 }
