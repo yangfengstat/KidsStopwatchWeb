@@ -31,6 +31,23 @@ function isDark() {
     document.documentElement.getAttribute('data-theme') === 'dark';
 }
 
+function renderGemBar() {
+  const bar = document.getElementById('gem-bar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  KIDS.forEach(kid => {
+    const gems = Storage.getGems(kid.name);
+    const item = document.createElement('div');
+    item.className = 'gem-bar-item';
+    item.innerHTML = `
+      <div class="gem-bar-dot" style="background:${kid.color}"></div>
+      <span class="gem-bar-name">${kid.name}</span>
+      <span class="gem-bar-count">💎 ${gems}</span>
+    `;
+    bar.appendChild(item);
+  });
+}
+
 function renderStopwatchCards() {
   const container = document.getElementById('stopwatch-container');
   container.innerHTML = '';
@@ -160,6 +177,7 @@ function toggleStopwatch(index) {
 
       // Check for new achievements and show toast + confetti
       const newAchievements = checkAchievements(sw.name, history);
+      renderGemBar();
       if (newAchievements.length > 0) {
         Confetti.launch();
         showAchievementToast(sw.name, newAchievements);
@@ -360,6 +378,7 @@ function setupDarkModeListener() {
 function init() {
   setupTabs();
   renderStopwatchCards();
+  renderGemBar();
   setupDarkModeListener();
 
   // #10: Register service worker for PWA/offline support
