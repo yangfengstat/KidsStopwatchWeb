@@ -746,6 +746,15 @@ body {
   margin-top: 2px;
 }
 
+.ach-card-hint {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  opacity: 0.75;
+  margin-top: 3px;
+  font-style: italic;
+}
+
 .ach-card-gems {
   font-size: 0.8rem;
   font-weight: 600;
