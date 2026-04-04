@@ -589,19 +589,33 @@ body {
   font-weight: 600;
 }
 
+.ach-gem-hero {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+
+.ach-gem-hero-number {
+  font-size: 3.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.ach-gem-hero-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
 .ach-gem-row {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.ach-gem-balance {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 1.3rem;
-  font-weight: 700;
+  justify-content: center;
+  padding-bottom: 4px;
 }
 
 .gem-icon {

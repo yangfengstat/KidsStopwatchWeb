@@ -118,16 +118,16 @@ function renderAchievementsView(kids, historyData) {
         <div class="color-dot" style="background: ${kid.color}; opacity: 0.8"></div>
         <span class="ach-kid-name">${kid.name}</span>
       </div>
+      <div class="ach-gem-hero" style="--kid-color: ${kid.color}; --kid-color-faint: ${colorWithAlpha(kid.color, 0.15)}">
+        <div class="ach-gem-hero-number" style="color: ${kid.color}; text-shadow: 0 0 24px ${colorWithAlpha(kid.color, 0.45)}">${gems}</div>
+        <div class="ach-gem-hero-label">💎 gems</div>
+      </div>
       <div class="ach-gem-row">
-        <div class="ach-gem-balance">
-          <span class="gem-icon">💎</span>
-          <span class="gem-count">${gems}</span>
-        </div>
         <button class="btn-buy-freeze" ${gems < FREEZE_COST ? 'disabled' : ''}>
           ❄️ Buy Freeze (${FREEZE_COST} 💎)
         </button>
         <div class="ach-freeze-count">
-          ❄️ <span>${freezes}</span> owned
+          ❄️ <span>${freezes}</span> freeze${freezes === 1 ? '' : 's'} owned
         </div>
       </div>
     `;
