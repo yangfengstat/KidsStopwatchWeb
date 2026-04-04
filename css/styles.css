@@ -201,14 +201,23 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .card-name {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .color-dot {
@@ -225,7 +234,8 @@ body {
 .card-badges {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 /* === Status Badge === */
@@ -240,13 +250,14 @@ body {
 .streak-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.75rem;
+  gap: 5px;
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 100px;
   color: rgb(234, 149, 30);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .streak-badge .divider {
