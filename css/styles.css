@@ -234,6 +234,20 @@ body {
   height: 160px;
 }
 
+@media (min-width: 480px) {
+  .clock-container svg {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@media (min-width: 900px) {
+  .clock-container svg {
+    width: 220px;
+    height: 220px;
+  }
+}
+
 /* #6: Smooth clock hand transitions */
 .clock-container svg .second-hand,
 .clock-container svg .minute-hand {
