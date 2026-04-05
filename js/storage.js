@@ -9,6 +9,7 @@ const Storage = (() => {
   // --- History ---
   function saveHistory(history) {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    _sync();
   }
 
   function loadHistory() {
@@ -55,6 +56,7 @@ const Storage = (() => {
     const map = _loadMap(ACHIEVEMENTS_KEY);
     map[kidName] = ids;
     _saveMap(ACHIEVEMENTS_KEY, map);
+    _sync();
   }
 
   // --- Gems ---
@@ -67,6 +69,7 @@ const Storage = (() => {
     const map = _loadMap(GEMS_KEY);
     map[kidName] = (map[kidName] || 0) + amount;
     _saveMap(GEMS_KEY, map);
+    _sync();
   }
 
   // --- Purchased Freezes ---
@@ -79,6 +82,12 @@ const Storage = (() => {
     const map = _loadMap(PURCHASED_FREEZES_KEY);
     map[kidName] = (map[kidName] || 0) + amount;
     _saveMap(PURCHASED_FREEZES_KEY, map);
+    _sync();
+  }
+
+  // Fire-and-forget sync after any write (Sync module may not be loaded yet on first call)
+  function _sync() {
+    if (typeof Sync !== 'undefined') Sync.push();
   }
 
   return {

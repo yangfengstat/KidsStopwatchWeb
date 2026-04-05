@@ -400,6 +400,114 @@ function setupDarkModeListener() {
   });
 }
 
+// === Sync UI ===
+
+function setupSync() {
+  const dot = document.getElementById('sync-status-dot');
+  const btn = document.getElementById('sync-btn');
+  const backdrop = document.getElementById('sync-modal-backdrop');
+  const closeBtn = document.getElementById('sync-modal-close');
+  const connectedDiv = document.getElementById('sync-connected');
+  const disconnectedDiv = document.getElementById('sync-disconnected');
+  const codeDisplay = document.getElementById('sync-code-display');
+  const copyBtn = document.getElementById('btn-copy-code');
+  const createBtn = document.getElementById('btn-create-room');
+  const joinInput = document.getElementById('sync-join-input');
+  const joinBtn = document.getElementById('btn-join-room');
+  const disconnectBtn = document.getElementById('btn-disconnect');
+
+  // Status dot colours
+  const STATUS_STYLES = {
+    disconnected: { bg: 'rgba(142,142,147,0.6)', spin: false },
+    connecting:   { bg: '#ffa500',               spin: true  },
+    syncing:      { bg: '#007aff',               spin: true  },
+    synced:       { bg: '#34c759',               spin: false },
+    error:        { bg: '#ff3b30',               spin: false },
+  };
+
+  function updateDot(status) {
+    const s = STATUS_STYLES[status] || STATUS_STYLES.disconnected;
+    dot.style.background = s.bg;
+    btn.classList.toggle('spin', s.spin);
+  }
+
+  function refreshModal() {
+    const code = Sync.getRoomCode();
+    if (code) {
+      connectedDiv.style.display = 'block';
+      disconnectedDiv.style.display = 'none';
+      codeDisplay.textContent = code;
+    } else {
+      connectedDiv.style.display = 'none';
+      disconnectedDiv.style.display = 'block';
+    }
+  }
+
+  // Open / close
+  btn.addEventListener('click', () => {
+    refreshModal();
+    backdrop.classList.add('visible');
+  });
+  closeBtn.addEventListener('click', () => backdrop.classList.remove('visible'));
+  backdrop.addEventListener('click', e => {
+    if (e.target === backdrop) backdrop.classList.remove('visible');
+  });
+
+  // Copy code
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(Sync.getRoomCode() || '').then(() => {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+  });
+
+  // Create room
+  createBtn.addEventListener('click', () => {
+    Sync.createRoom();
+    refreshModal();
+  });
+
+  // Join room
+  function doJoin() {
+    const code = joinInput.value.trim().toUpperCase();
+    if (code.length < 4) return;
+    Sync.joinRoom(code);
+    joinInput.value = '';
+    refreshModal();
+    backdrop.classList.remove('visible');
+  }
+  joinBtn.addEventListener('click', doJoin);
+  joinInput.addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
+
+  // Disconnect
+  disconnectBtn.addEventListener('click', () => {
+    Sync.disconnect();
+    refreshModal();
+  });
+
+  // Wire up status callback
+  Sync.onStatus(updateDot);
+
+  // Callback when Firebase pushes fresh data from another device
+  function onRemoteUpdate() {
+    // Reload history from localStorage (which was just updated by Sync)
+    history = Storage.loadHistory();
+    renderStopwatchCards();
+    renderGemBar();
+
+    // Re-render whichever tab is currently visible
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) {
+      const tab = activeTab.dataset.tab;
+      if (tab === 'history') renderHistory(history, KIDS, deleteHistoryEntry);
+      if (tab === 'achievements') renderAchievementsView(KIDS, history);
+    }
+  }
+
+  // Init Firebase — this will pull remote data if a room code is saved
+  Sync.init(onRemoteUpdate);
+}
+
 // === Init ===
 
 function init() {
@@ -408,8 +516,9 @@ function init() {
   renderGemBar();
   setupDarkModeListener();
   setupScrollFade();
+  setupSync();
 
-  // #10: Register service worker for PWA/offline support
+  // Register service worker for PWA/offline support
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
