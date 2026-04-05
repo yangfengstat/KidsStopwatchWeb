@@ -4,15 +4,12 @@
 const Sync = (() => {
   const ROOM_KEY = 'syncRoomCode';
 
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDo-cpMz5hssom8l_-LlmQzGmPxuYhn3jU",
-    authDomain: "kidsstopwatch.firebaseapp.com",
-    databaseURL: "https://kidsstopwatch-default-rtdb.firebaseio.com",
-    projectId: "kidsstopwatch",
-    storageBucket: "kidsstopwatch.firebasestorage.app",
-    messagingSenderId: "201784282759",
-    appId: "1:201784282759:web:0a9f620b3f977b71743222"
-  };
+  // Config is injected at build time by Netlify into js/firebase-config.js
+  // (see netlify.toml) and exposed as window.FIREBASE_CONFIG.
+  // For local development, create js/firebase-config.js manually (see README).
+  const FIREBASE_CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG)
+    ? window.FIREBASE_CONFIG
+    : null;
 
   let db = null;
   let currentRoom = null;
@@ -30,6 +27,11 @@ const Sync = (() => {
     // Firebase loaded via CDN compat scripts
     if (typeof firebase === 'undefined') {
       console.warn('Sync: Firebase SDK not loaded');
+      return;
+    }
+    if (!FIREBASE_CONFIG) {
+      console.warn('Sync: Firebase config missing — create js/firebase-config.js for local dev');
+      _setStatus('disconnected');
       return;
     }
 

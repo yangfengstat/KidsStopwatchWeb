@@ -1,5 +1,6 @@
 [build]
   publish = "."
+  command = "printf 'window.FIREBASE_CONFIG=%s;' \"$FIREBASE_CONFIG\" > js/firebase-config.js"
 
 [[headers]]
   for = "/*"
