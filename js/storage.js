@@ -7,6 +7,7 @@ const Storage = (() => {
   const PURCHASED_FREEZES_KEY = 'purchasedFreezes';
   const KIDS_KEY = 'kidsConfig';
   const VACATIONS_KEY = 'vacations';
+  const EXERCISE_COUNTS_KEY = 'exerciseCounts';
 
   // Default kids if kidsConfig is not set yet
   const DEFAULT_KIDS = [
@@ -124,6 +125,45 @@ const Storage = (() => {
     _sync();
   }
 
+  // --- Exercise counts (per-kid, per-day pull-up / push-up tallies) ---
+  // Shape: { kidName: { "YYYY-MM-DD": { pullups: N, pushups: N } } }
+  function _loadExerciseCounts() {
+    const data = localStorage.getItem(EXERCISE_COUNTS_KEY);
+    if (data) { try { return JSON.parse(data); } catch {} }
+    return {};
+  }
+
+  function loadAllExerciseCounts() {
+    return _loadExerciseCounts();
+  }
+
+  function getReps(kidName, dayKey) {
+    const all = _loadExerciseCounts();
+    const k = all[kidName] || {};
+    const d = k[dayKey] || {};
+    return { pullups: d.pullups || 0, pushups: d.pushups || 0 };
+  }
+
+  function setReps(kidName, dayKey, { pullups, pushups }) {
+    const all = _loadExerciseCounts();
+    if (!all[kidName]) all[kidName] = {};
+    all[kidName][dayKey] = {
+      pullups: Math.max(0, pullups | 0),
+      pushups: Math.max(0, pushups | 0),
+    };
+    localStorage.setItem(EXERCISE_COUNTS_KEY, JSON.stringify(all));
+    _sync();
+  }
+
+  // Atomic delta update — prevents clobbering a concurrent add on a fast device.
+  function addReps(kidName, dayKey, { pullups = 0, pushups = 0 }) {
+    const current = getReps(kidName, dayKey);
+    setReps(kidName, dayKey, {
+      pullups: current.pullups + pullups,
+      pushups: current.pushups + pushups,
+    });
+  }
+
   // --- Vacations (family-wide) ---
   // Each entry: { id, start: "YYYY-MM-DD", end: "YYYY-MM-DD", note }
   function loadVacations() {
@@ -150,6 +190,7 @@ const Storage = (() => {
     getPurchasedFreezes, addPurchasedFreezes,
     loadKidsConfig, saveKidsConfig,
     loadVacations, saveVacations,
+    getReps, setReps, addReps, loadAllExerciseCounts,
     DEFAULT_KIDS,
   };
 })();

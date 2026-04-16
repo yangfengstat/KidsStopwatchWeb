@@ -112,6 +112,26 @@ function renderStopwatchCards() {
         <button class="btn btn-reset">Reset</button>
         <button class="btn btn-add">+ 15s</button>
       </div>
+      <div class="reps-row">
+        <div class="reps-line" data-kind="pullups">
+          <span class="reps-label">💪 Pull-ups</span>
+          <span class="reps-count" data-role="pullups-count">0</span>
+          <div class="reps-buttons">
+            <button class="reps-btn" data-op="dec" data-kind="pullups" aria-label="Remove pull-up">−</button>
+            <button class="reps-btn" data-op="inc" data-kind="pullups" aria-label="Add pull-up">+1</button>
+            <button class="reps-btn reps-btn-wide" data-op="inc5" data-kind="pullups" aria-label="Add 5 pull-ups">+5</button>
+          </div>
+        </div>
+        <div class="reps-line" data-kind="pushups">
+          <span class="reps-label">💪 Push-ups</span>
+          <span class="reps-count" data-role="pushups-count">0</span>
+          <div class="reps-buttons">
+            <button class="reps-btn" data-op="dec" data-kind="pushups" aria-label="Remove push-up">−</button>
+            <button class="reps-btn" data-op="inc" data-kind="pushups" aria-label="Add push-up">+1</button>
+            <button class="reps-btn reps-btn-wide" data-op="inc5" data-kind="pushups" aria-label="Add 5 push-ups">+5</button>
+          </div>
+        </div>
+      </div>
     `;
 
     // Create clock
@@ -141,7 +161,9 @@ function renderStopwatchCards() {
       freezeCount: card.querySelector('.freeze-count'),
       btnPrimary: card.querySelector('.btn-primary'),
       btnReset: card.querySelector('.btn-reset'),
-      btnAdd: card.querySelector('.btn-add')
+      btnAdd: card.querySelector('.btn-add'),
+      pullupsCount: card.querySelector('[data-role="pullups-count"]'),
+      pushupsCount: card.querySelector('[data-role="pushups-count"]'),
     };
 
     // Button styles
@@ -160,11 +182,65 @@ function renderStopwatchCards() {
     sw.elements.btnReset.addEventListener('click', () => resetStopwatch(index));
     sw.elements.btnAdd.addEventListener('click', () => addTime(index, 15));
 
+    // Reps buttons (+/- pullups and pushups for today)
+    card.querySelectorAll('.reps-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.kind;   // "pullups" | "pushups"
+        const op = btn.dataset.op;       // "inc" | "inc5" | "dec"
+        const delta = op === 'inc5' ? 5 : op === 'dec' ? -1 : 1;
+        adjustReps(index, kind, delta);
+      });
+    });
+
     container.appendChild(card);
 
-    // Update streak display
+    // Update streak + reps display
     updateStreakDisplay(index);
+    updateRepsDisplay(index);
   });
+}
+
+// === Reps ===
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function updateRepsDisplay(index) {
+  const sw = stopwatches[index];
+  const reps = Storage.getReps(sw.name, todayKey());
+  if (sw.elements.pullupsCount) sw.elements.pullupsCount.textContent = reps.pullups;
+  if (sw.elements.pushupsCount) sw.elements.pushupsCount.textContent = reps.pushups;
+}
+
+function adjustReps(index, kind, delta) {
+  const sw = stopwatches[index];
+  const day = todayKey();
+  const current = Storage.getReps(sw.name, day);
+  const next = {
+    pullups: current.pullups + (kind === 'pullups' ? delta : 0),
+    pushups: current.pushups + (kind === 'pushups' ? delta : 0),
+  };
+  // Clamp to zero
+  next.pullups = Math.max(0, next.pullups);
+  next.pushups = Math.max(0, next.pushups);
+
+  // No-op if nothing changed (e.g. tapping − at 0)
+  if (next.pullups === current.pullups && next.pushups === current.pushups) return;
+
+  Storage.setReps(sw.name, day, next);
+  updateRepsDisplay(index);
+
+  // Check for new achievements (don't fire on decrements)
+  if (delta > 0) {
+    const newAch = checkAchievements(sw.name, history);
+    renderGemBar();
+    if (newAch.length > 0) {
+      Confetti.launch();
+      showAchievementToast(sw.name, newAch);
+    }
+  }
 }
 
 function colorWithAlpha(color, alpha) {
@@ -544,6 +620,7 @@ function rerenderAll() {
   loadKids();
   renderStopwatchCards();
   renderGemBar();
+  stopwatches.forEach((_, i) => updateRepsDisplay(i));
   const activeTab = document.querySelector('.tab.active');
   if (activeTab) {
     const tab = activeTab.dataset.tab;
@@ -563,6 +640,8 @@ function setupBackfill() {
   const timeInput = document.getElementById('backfill-time');
   const minutesInput = document.getElementById('backfill-minutes');
   const secondsInput = document.getElementById('backfill-seconds');
+  const pullupsInput = document.getElementById('backfill-pullups');
+  const pushupsInput = document.getElementById('backfill-pushups');
   const submitBtn = document.getElementById('btn-submit-backfill');
 
   function refresh() {
@@ -581,6 +660,8 @@ function setupBackfill() {
     timeInput.value = '16:00';
     minutesInput.value = 15;
     secondsInput.value = 0;
+    pullupsInput.value = 0;
+    pushupsInput.value = 0;
   }
 
   openBtn.addEventListener('click', () => {
@@ -603,27 +684,42 @@ function setupBackfill() {
     const mins = parseInt(minutesInput.value, 10) || 0;
     const secs = parseInt(secondsInput.value, 10) || 0;
     const duration = mins * 60 + secs;
-    if (!kidName || !date || duration <= 0) {
-      alert('Please fill in all fields (duration must be > 0).');
+    const pullups = Math.max(0, parseInt(pullupsInput.value, 10) || 0);
+    const pushups = Math.max(0, parseInt(pushupsInput.value, 10) || 0);
+
+    if (!kidName || !date) { alert('Please pick a kid and a date.'); return; }
+    if (duration <= 0 && pullups === 0 && pushups === 0) {
+      alert('Enter either a duration or some reps to record.');
       return;
     }
     const ts = new Date(`${date}T${time || '12:00'}:00`);
     if (isNaN(ts)) { alert('Invalid date/time.'); return; }
 
-    const entry = {
-      id: generateId(),
-      childName: kidName,
-      duration,
-      timestamp: ts.toISOString(),
-      backfilled: true,
-    };
-    history.push(entry);
-    Storage.saveHistory(history);
-    history = Storage.loadHistory();  // re-sort
+    // Timer session entry (only if duration > 0)
+    if (duration > 0) {
+      const entry = {
+        id: generateId(),
+        childName: kidName,
+        duration,
+        timestamp: ts.toISOString(),
+        backfilled: true,
+      };
+      history.push(entry);
+      Storage.saveHistory(history);
+      history = Storage.loadHistory();  // re-sort
+    }
+
+    // Reps for this day (adds on top of any existing count)
+    if (pullups > 0 || pushups > 0) {
+      Storage.addReps(kidName, date, { pullups, pushups });
+    }
 
     checkAchievements(kidName, history);
     renderGemBar();
-    stopwatches.forEach((_, i) => updateStreakDisplay(i));
+    stopwatches.forEach((_, i) => {
+      updateStreakDisplay(i);
+      updateRepsDisplay(i);
+    });
     renderHistory(history, KIDS, deleteHistoryEntry);
 
     backdrop.classList.remove('visible');

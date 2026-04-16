@@ -13,6 +13,10 @@ function getWeekInterval() {
   return { start: monday, end: nextMonday };
 }
 
+function _dayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function renderWeeklyGrid(history, kids) {
   const grid = document.getElementById('weekly-grid');
   grid.innerHTML = '';
@@ -29,10 +33,31 @@ function renderWeeklyGrid(history, kids) {
     }
   }
 
+  // Weekly rep totals from exerciseCounts
+  const allReps = (typeof Storage !== 'undefined') ? Storage.loadAllExerciseCounts() : {};
+  const weekDayKeys = [];
+  {
+    let d = new Date(interval.start);
+    while (d < interval.end) {
+      weekDayKeys.push(_dayKey(d));
+      d = new Date(d); d.setDate(d.getDate() + 1);
+    }
+  }
+
   for (const kid of kids) {
     const total = totals[kid.name] || 0;
     const sessions = sessionCounts[kid.name] || 0;
     const sessionLabel = sessions === 1 ? '1 session' : `${sessions} sessions`;
+
+    // Sum this week's reps for the kid
+    const kidReps = allReps[kid.name] || {};
+    let wkPullups = 0, wkPushups = 0;
+    for (const k of weekDayKeys) {
+      const r = kidReps[k] || {};
+      wkPullups += r.pullups || 0;
+      wkPushups += r.pushups || 0;
+    }
+    const hasReps = (wkPullups + wkPushups) > 0;
 
     const card = document.createElement('div');
     card.className = 'weekly-card';
@@ -48,6 +73,13 @@ function renderWeeklyGrid(history, kids) {
         <span class="weekly-card-label">This week</span>
         <span class="weekly-card-sessions" style="color:${kid.color}">${sessionLabel}</span>
       </div>
+      ${hasReps ? `
+        <div class="weekly-card-reps">
+          <span>💪 ${wkPullups} pull</span>
+          <span>·</span>
+          <span>${wkPushups} push</span>
+        </div>
+      ` : ''}
     `;
     grid.appendChild(card);
   }
