@@ -189,6 +189,18 @@ const Sync = (() => {
     if (data.freezeStart) {
       localStorage.setItem('freezeTrackingStart', data.freezeStart);
     }
+    if (data.kidsConfig !== undefined) {
+      const arr = Array.isArray(data.kidsConfig)
+        ? data.kidsConfig
+        : Object.values(data.kidsConfig || {});
+      localStorage.setItem('kidsConfig', JSON.stringify(arr));
+    }
+    if (data.vacations !== undefined) {
+      const arr = Array.isArray(data.vacations)
+        ? data.vacations
+        : Object.values(data.vacations || {});
+      localStorage.setItem('vacations', JSON.stringify(arr));
+    }
   }
 
   /** Read all localStorage keys into a plain object for Firebase. */
@@ -199,6 +211,8 @@ const Sync = (() => {
       gems:         JSON.parse(localStorage.getItem('gemBalance')           || '{}'),
       freezes:      JSON.parse(localStorage.getItem('purchasedFreezes')     || '{}'),
       freezeStart:  localStorage.getItem('freezeTrackingStart') || new Date().toISOString(),
+      kidsConfig:   JSON.parse(localStorage.getItem('kidsConfig')           || '[]'),
+      vacations:    JSON.parse(localStorage.getItem('vacations')            || '[]'),
       updatedAt:    Date.now(),
     };
   }

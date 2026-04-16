@@ -135,7 +135,7 @@ function renderAchievementsView(kids, historyData) {
     }
     header.innerHTML = `
       <div class="ach-kid-info">
-        <div class="color-dot" style="background: ${kid.color}; opacity: 0.8"></div>
+        <span class="kid-avatar" style="background: ${colorWithAlpha(kid.color, 0.2)}; border-color: ${colorWithAlpha(kid.color, 0.4)}">${kid.avatar || '⭐'}</span>
         <span class="ach-kid-name">${kid.name}</span>
       </div>
       <div class="ach-gem-hero" style="--kid-color: ${kid.color}; --kid-color-faint: ${colorWithAlpha(kid.color, 0.15)}">

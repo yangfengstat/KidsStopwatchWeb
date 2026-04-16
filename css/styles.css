@@ -350,6 +350,305 @@ body {
 }
 .btn-disconnect:hover { background: rgba(255,59,48,0.15); }
 
+/* === Generic icon button (header gear etc.) === */
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(128,128,128,0.2);
+  background: rgba(128,128,128,0.08);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.icon-btn:hover { background: rgba(128,128,128,0.15); }
+
+/* === Wider modal variant (Settings) === */
+.modal.modal-wide {
+  max-width: 480px;
+}
+
+/* === Form elements === */
+.form-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.form-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(128,128,128,0.25);
+  background: rgba(128,128,128,0.06);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.form-input:focus {
+  border-color: #007aff;
+  background: rgba(0,122,255,0.05);
+}
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+.form-row .form-label { margin-bottom: 12px; }
+
+.btn-primary-block {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  border-radius: 14px;
+  border: none;
+  background: #007aff;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn-primary-block:hover { opacity: 0.9; }
+
+.btn-add-inline {
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1.5px solid rgba(0,122,255,0.4);
+  background: rgba(0,122,255,0.1);
+  color: #007aff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-add-inline:hover { background: rgba(0,122,255,0.18); }
+
+.btn-mini {
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1.2px solid rgba(128,128,128,0.3);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-mini:hover { background: rgba(128,128,128,0.1); }
+.btn-mini.btn-mini-danger {
+  border-color: rgba(255,59,48,0.4);
+  color: #ff3b30;
+}
+.btn-mini.btn-mini-danger:hover { background: rgba(255,59,48,0.1); }
+
+.btn-danger {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255,59,48,0.4);
+  background: rgba(255,59,48,0.08);
+  color: #ff3b30;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-danger:hover { background: rgba(255,59,48,0.18); }
+
+/* === Settings sections === */
+.settings-section {
+  margin-bottom: 22px;
+}
+.settings-section:last-child { margin-bottom: 0; }
+
+.settings-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.settings-section-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.settings-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+/* === Kids list === */
+.kids-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kid-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(128,128,128,0.06);
+}
+.kid-row.archived { opacity: 0.55; }
+.kid-row-avatar {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.kid-row-name {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.kid-row-name em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-left: 6px;
+}
+.kid-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* === Color + avatar pickers === */
+.color-picker, .avatar-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.color-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.color-swatch:hover { transform: scale(1.1); }
+.color-swatch.selected {
+  border-color: var(--text-primary);
+  transform: scale(1.1);
+}
+.avatar-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(128,128,128,0.2);
+  background: rgba(128,128,128,0.05);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s, border-color 0.15s, background 0.15s;
+}
+.avatar-swatch:hover { transform: scale(1.08); }
+.avatar-swatch.selected {
+  border-color: #007aff;
+  background: rgba(0,122,255,0.1);
+  transform: scale(1.08);
+}
+
+.kid-editor-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.kid-editor-footer .btn-primary-block { flex: 1; margin-top: 0; }
+
+/* === Vacation list === */
+.vacation-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vacation-add-row .form-input { margin-top: 0; }
+.vacation-arrow {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.vacation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.vacation-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(120, 200, 130, 0.08);
+  border: 1px solid rgba(120, 200, 130, 0.2);
+}
+.vacation-dates {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.vacation-note {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* === Vacation badge on status === */
+.status-badge.on-vacation {
+  background: rgba(120, 200, 130, 0.2) !important;
+  color: rgb(75, 140, 85) !important;
+}
+
+/* === Avatar styling on cards === */
+.card-avatar,
+.gem-bar-avatar,
+.weekly-card-avatar {
+  font-size: 1.1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.card-avatar { font-size: 1.3rem; }
+.kid-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* === History tab "Add past session" button === */
+.btn-add-past {
+  padding: 8px 14px;
+  border-radius: 100px;
+  border: 1.5px solid rgba(0,122,255,0.4);
+  background: rgba(0,122,255,0.08);
+  color: #007aff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-add-past:hover { background: rgba(0,122,255,0.18); }
+
 /* === Gem Bar (header) === */
 .gem-bar {
   display: flex;
