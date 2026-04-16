@@ -1,23 +1,43 @@
 // App entry point
 
-const KIDS = [
-  { name: 'Isabella', color: 'rgb(250, 133, 166)' },
-  { name: 'Viviana', color: 'rgb(107, 176, 232)' }
-];
-
+// Dynamic kids config (loaded from localStorage; falls back to defaults on first run)
+let KIDS = [];
+let stopwatches = [];
 let history = Storage.loadHistory();
 
-// Stopwatch state
-const stopwatches = KIDS.map(kid => ({
-  name: kid.name,
-  color: kid.color,
-  time: 0,
-  isRunning: false,
-  startedAt: null, // Date.now() when started (for drift-free timing)
-  accumulatedTime: 0, // time accumulated before current run
-  clock: null,
-  elements: {}
-}));
+// Rebuild the KIDS array and stopwatch runtime state from storage.
+// Archived kids are excluded from the stopwatches list but their data is preserved.
+function loadKids() {
+  const all = Storage.loadKidsConfig();
+  KIDS = all.filter(k => !k.archived);
+  // Preserve any running timers when possible (match by name)
+  const previouslyRunning = {};
+  stopwatches.forEach(sw => {
+    if (sw.isRunning || sw.time > 0) {
+      previouslyRunning[sw.name] = {
+        time: sw.time,
+        isRunning: sw.isRunning,
+        startedAt: sw.startedAt,
+        accumulatedTime: sw.accumulatedTime,
+      };
+    }
+  });
+  stopwatches = KIDS.map(kid => {
+    const prev = previouslyRunning[kid.name];
+    return {
+      name: kid.name,
+      color: kid.color,
+      avatar: kid.avatar || '⭐',
+      time: prev ? prev.time : 0,
+      isRunning: prev ? prev.isRunning : false,
+      startedAt: prev ? prev.startedAt : null,
+      accumulatedTime: prev ? prev.accumulatedTime : 0,
+      clock: null,
+      elements: {}
+    };
+  });
+}
+loadKids();
 
 let intervalId = null;
 const originalTitle = 'Kids Stopwatch';
@@ -40,7 +60,7 @@ function renderGemBar() {
     const item = document.createElement('div');
     item.className = 'gem-bar-item';
     item.innerHTML = `
-      <div class="gem-bar-dot" style="background:${kid.color}"></div>
+      <span class="gem-bar-avatar">${kid.avatar || '⭐'}</span>
       <span class="gem-bar-name">${kid.name}</span>
       <span class="gem-bar-count">💎 ${gems}</span>
     `;
@@ -71,7 +91,7 @@ function renderStopwatchCards() {
     card.innerHTML = `
       <div class="card-header">
         <div class="card-name">
-          <div class="color-dot" style="background: ${sw.color}; opacity: 0.8"></div>
+          <span class="card-avatar">${sw.avatar || '⭐'}</span>
           <span>${sw.name}</span>
         </div>
         <div class="card-badges">
@@ -305,6 +325,15 @@ function updateStreakDisplay(index) {
   prevStreaks[sw.name] = info.streak; // #1: Track for milestone detection
   sw.elements.streakCount.textContent = info.streak + 'd';
   sw.elements.freezeCount.textContent = info.freezesLeft;
+  // Update vacation indicator on status badge
+  if (sw.elements.statusBadge) {
+    sw.elements.statusBadge.classList.toggle('on-vacation', !!info.onVacation);
+    if (info.onVacation && !sw.isRunning) {
+      sw.elements.statusBadge.textContent = '🌴 Vacation';
+    } else if (!sw.isRunning) {
+      sw.elements.statusBadge.textContent = 'Paused';
+    }
+  }
 }
 
 // === Achievement Toast ===
@@ -490,8 +519,9 @@ function setupSync() {
 
   // Callback when Firebase pushes fresh data from another device
   function onRemoteUpdate() {
-    // Reload history from localStorage (which was just updated by Sync)
+    // Reload everything from localStorage (just updated by Sync)
     history = Storage.loadHistory();
+    loadKids();
     renderStopwatchCards();
     renderGemBar();
 
@@ -508,6 +538,355 @@ function setupSync() {
   Sync.init(onRemoteUpdate);
 }
 
+// === Full re-render helper (after kids config or vacations change) ===
+
+function rerenderAll() {
+  loadKids();
+  renderStopwatchCards();
+  renderGemBar();
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab) {
+    const tab = activeTab.dataset.tab;
+    if (tab === 'history') renderHistory(history, KIDS, deleteHistoryEntry);
+    if (tab === 'achievements') renderAchievementsView(KIDS, history);
+  }
+}
+
+// === Backfill Past Session ===
+
+function setupBackfill() {
+  const backdrop = document.getElementById('backfill-modal-backdrop');
+  const openBtn = document.getElementById('btn-add-past');
+  const closeBtn = document.getElementById('backfill-close');
+  const kidSelect = document.getElementById('backfill-kid');
+  const dateInput = document.getElementById('backfill-date');
+  const timeInput = document.getElementById('backfill-time');
+  const minutesInput = document.getElementById('backfill-minutes');
+  const secondsInput = document.getElementById('backfill-seconds');
+  const submitBtn = document.getElementById('btn-submit-backfill');
+
+  function refresh() {
+    // Populate kid dropdown
+    kidSelect.innerHTML = '';
+    KIDS.forEach(kid => {
+      const opt = document.createElement('option');
+      opt.value = kid.name;
+      opt.textContent = `${kid.avatar || '⭐'} ${kid.name}`;
+      kidSelect.appendChild(opt);
+    });
+    // Default date = yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    dateInput.value = yesterday.toISOString().slice(0, 10);
+    timeInput.value = '16:00';
+    minutesInput.value = 15;
+    secondsInput.value = 0;
+  }
+
+  openBtn.addEventListener('click', () => {
+    if (KIDS.length === 0) {
+      alert('Add a kid first in Settings.');
+      return;
+    }
+    refresh();
+    backdrop.classList.add('visible');
+  });
+  closeBtn.addEventListener('click', () => backdrop.classList.remove('visible'));
+  backdrop.addEventListener('click', e => {
+    if (e.target === backdrop) backdrop.classList.remove('visible');
+  });
+
+  submitBtn.addEventListener('click', () => {
+    const kidName = kidSelect.value;
+    const date = dateInput.value;     // YYYY-MM-DD
+    const time = timeInput.value;     // HH:MM
+    const mins = parseInt(minutesInput.value, 10) || 0;
+    const secs = parseInt(secondsInput.value, 10) || 0;
+    const duration = mins * 60 + secs;
+    if (!kidName || !date || duration <= 0) {
+      alert('Please fill in all fields (duration must be > 0).');
+      return;
+    }
+    const ts = new Date(`${date}T${time || '12:00'}:00`);
+    if (isNaN(ts)) { alert('Invalid date/time.'); return; }
+
+    const entry = {
+      id: generateId(),
+      childName: kidName,
+      duration,
+      timestamp: ts.toISOString(),
+      backfilled: true,
+    };
+    history.push(entry);
+    Storage.saveHistory(history);
+    history = Storage.loadHistory();  // re-sort
+
+    checkAchievements(kidName, history);
+    renderGemBar();
+    stopwatches.forEach((_, i) => updateStreakDisplay(i));
+    renderHistory(history, KIDS, deleteHistoryEntry);
+
+    backdrop.classList.remove('visible');
+  });
+}
+
+// === Settings (kids + vacations) ===
+
+const AVATAR_PALETTE = ['🌸','🦋','🐻','🦊','🐰','🐼','🦁','🐶','🐱','🐸','🐯','🐵','🐷','🐔','🦄','⭐','🌈','🚀','⚽','🎨'];
+const COLOR_PALETTE = [
+  'rgb(250, 133, 166)', // pink
+  'rgb(107, 176, 232)', // blue
+  'rgb(120, 200, 130)', // green
+  'rgb(180, 130, 220)', // purple
+  'rgb(255, 160, 80)',  // orange
+  'rgb(240, 200, 80)',  // yellow
+  'rgb(150, 200, 220)', // aqua
+  'rgb(230, 110, 110)', // red
+];
+
+let editingKidIndex = -1; // index into full (including archived) list; -1 = adding new
+
+function setupSettings() {
+  const backdrop = document.getElementById('settings-modal-backdrop');
+  const openBtn = document.getElementById('settings-btn');
+  const closeBtn = document.getElementById('settings-close');
+  const kidsList = document.getElementById('kids-list');
+  const addKidBtn = document.getElementById('btn-add-kid');
+
+  const vacStart = document.getElementById('vacation-start');
+  const vacEnd = document.getElementById('vacation-end');
+  const vacNote = document.getElementById('vacation-note');
+  const addVacBtn = document.getElementById('btn-add-vacation');
+  const vacList = document.getElementById('vacation-list');
+
+  function renderKidsList() {
+    const all = Storage.loadKidsConfig();
+    kidsList.innerHTML = '';
+    all.forEach((kid, index) => {
+      const row = document.createElement('div');
+      row.className = 'kid-row' + (kid.archived ? ' archived' : '');
+      row.style.borderLeft = `4px solid ${kid.color}`;
+      row.innerHTML = `
+        <span class="kid-row-avatar">${kid.avatar || '⭐'}</span>
+        <span class="kid-row-name">${kid.name}${kid.archived ? ' <em>(archived)</em>' : ''}</span>
+        <div class="kid-row-actions">
+          ${kid.archived
+            ? '<button class="btn-mini" data-act="restore">Restore</button>'
+            : '<button class="btn-mini" data-act="edit">Edit</button>'
+          }
+        </div>
+      `;
+      row.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.dataset.act === 'edit') openKidEditor(index);
+          if (btn.dataset.act === 'restore') {
+            const cfg = Storage.loadKidsConfig();
+            cfg[index].archived = false;
+            Storage.saveKidsConfig(cfg);
+            rerenderAll();
+            renderKidsList();
+          }
+        });
+      });
+      kidsList.appendChild(row);
+    });
+  }
+
+  function renderVacationList() {
+    const vacations = Storage.loadVacations()
+      .slice()
+      .sort((a, b) => new Date(b.start) - new Date(a.start));
+    vacList.innerHTML = '';
+    if (vacations.length === 0) {
+      vacList.innerHTML = '<p class="settings-hint" style="margin-top:12px">No vacations yet.</p>';
+      return;
+    }
+    vacations.forEach(v => {
+      const row = document.createElement('div');
+      row.className = 'vacation-row';
+      row.innerHTML = `
+        <span class="vacation-dates">${v.start} → ${v.end}</span>
+        <span class="vacation-note">${v.note || ''}</span>
+        <button class="btn-mini btn-mini-danger" data-id="${v.id}">Remove</button>
+      `;
+      row.querySelector('button').addEventListener('click', () => {
+        const remaining = Storage.loadVacations().filter(x => x.id !== v.id);
+        Storage.saveVacations(remaining);
+        renderVacationList();
+        stopwatches.forEach((_, i) => updateStreakDisplay(i));
+      });
+      vacList.appendChild(row);
+    });
+  }
+
+  function refresh() {
+    renderKidsList();
+    renderVacationList();
+    // Default vacation date range = today … today
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (!vacStart.value) vacStart.value = todayStr;
+    if (!vacEnd.value) vacEnd.value = todayStr;
+    vacNote.value = '';
+  }
+
+  openBtn.addEventListener('click', () => {
+    refresh();
+    backdrop.classList.add('visible');
+  });
+  closeBtn.addEventListener('click', () => backdrop.classList.remove('visible'));
+  backdrop.addEventListener('click', e => {
+    if (e.target === backdrop) backdrop.classList.remove('visible');
+  });
+
+  addKidBtn.addEventListener('click', () => openKidEditor(-1));
+
+  addVacBtn.addEventListener('click', () => {
+    const start = vacStart.value;
+    const end = vacEnd.value;
+    const note = vacNote.value.trim();
+    if (!start || !end) { alert('Pick a start and end date.'); return; }
+    if (new Date(end) < new Date(start)) { alert('End date must be after start.'); return; }
+    const vacations = Storage.loadVacations();
+    vacations.push({ id: generateId(), start, end, note });
+    Storage.saveVacations(vacations);
+    renderVacationList();
+    stopwatches.forEach((_, i) => updateStreakDisplay(i));
+    vacNote.value = '';
+  });
+
+  // Kid editor modal
+  const editorBackdrop = document.getElementById('kid-editor-backdrop');
+  const editorTitle = document.getElementById('kid-editor-title');
+  const editorClose = document.getElementById('kid-editor-close');
+  const nameInput = document.getElementById('kid-editor-name');
+  const colorsDiv = document.getElementById('kid-editor-colors');
+  const avatarsDiv = document.getElementById('kid-editor-avatars');
+  const archiveBtn = document.getElementById('btn-archive-kid');
+  const saveKidBtn = document.getElementById('btn-save-kid');
+
+  let currentColor = COLOR_PALETTE[0];
+  let currentAvatar = AVATAR_PALETTE[0];
+
+  function renderPickers() {
+    colorsDiv.innerHTML = '';
+    COLOR_PALETTE.forEach(c => {
+      const swatch = document.createElement('button');
+      swatch.className = 'color-swatch' + (c === currentColor ? ' selected' : '');
+      swatch.style.background = c;
+      swatch.type = 'button';
+      swatch.setAttribute('aria-label', c);
+      swatch.addEventListener('click', () => {
+        currentColor = c;
+        renderPickers();
+      });
+      colorsDiv.appendChild(swatch);
+    });
+    avatarsDiv.innerHTML = '';
+    AVATAR_PALETTE.forEach(a => {
+      const btn = document.createElement('button');
+      btn.className = 'avatar-swatch' + (a === currentAvatar ? ' selected' : '');
+      btn.textContent = a;
+      btn.type = 'button';
+      btn.addEventListener('click', () => {
+        currentAvatar = a;
+        renderPickers();
+      });
+      avatarsDiv.appendChild(btn);
+    });
+  }
+
+  function openKidEditor(index) {
+    editingKidIndex = index;
+    const all = Storage.loadKidsConfig();
+    if (index >= 0) {
+      const k = all[index];
+      editorTitle.textContent = 'Edit kid';
+      nameInput.value = k.name;
+      currentColor = k.color || COLOR_PALETTE[0];
+      currentAvatar = k.avatar || AVATAR_PALETTE[0];
+      archiveBtn.style.display = 'inline-block';
+      archiveBtn.textContent = k.archived ? 'Restore' : 'Archive';
+    } else {
+      editorTitle.textContent = 'Add kid';
+      nameInput.value = '';
+      // Pick a color not already used if possible
+      const usedColors = new Set(all.map(k => k.color));
+      currentColor = COLOR_PALETTE.find(c => !usedColors.has(c)) || COLOR_PALETTE[0];
+      currentAvatar = AVATAR_PALETTE[Math.floor(Math.random() * AVATAR_PALETTE.length)];
+      archiveBtn.style.display = 'none';
+    }
+    renderPickers();
+    editorBackdrop.classList.add('visible');
+    setTimeout(() => nameInput.focus(), 50);
+  }
+
+  editorClose.addEventListener('click', () => editorBackdrop.classList.remove('visible'));
+  editorBackdrop.addEventListener('click', e => {
+    if (e.target === editorBackdrop) editorBackdrop.classList.remove('visible');
+  });
+
+  archiveBtn.addEventListener('click', () => {
+    const all = Storage.loadKidsConfig();
+    if (editingKidIndex < 0) return;
+    all[editingKidIndex].archived = !all[editingKidIndex].archived;
+    Storage.saveKidsConfig(all);
+    editorBackdrop.classList.remove('visible');
+    rerenderAll();
+    renderKidsList();
+  });
+
+  saveKidBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name) { alert('Name is required.'); return; }
+    const all = Storage.loadKidsConfig();
+
+    // Detect name collision (block only if the colliding kid isn't the one being edited)
+    const collision = all.findIndex((k, i) => k.name.toLowerCase() === name.toLowerCase() && i !== editingKidIndex);
+    if (collision >= 0) { alert('A kid with that name already exists.'); return; }
+
+    if (editingKidIndex < 0) {
+      all.push({ name, color: currentColor, avatar: currentAvatar, archived: false });
+    } else {
+      // Allow rename — this detaches old per-kid data (history still references the old name).
+      // To keep data attached, we'll migrate: rename history entries + per-kid maps.
+      const oldName = all[editingKidIndex].name;
+      if (oldName !== name) {
+        migrateKidName(oldName, name);
+      }
+      all[editingKidIndex] = { ...all[editingKidIndex], name, color: currentColor, avatar: currentAvatar };
+    }
+    Storage.saveKidsConfig(all);
+    editorBackdrop.classList.remove('visible');
+    rerenderAll();
+    renderKidsList();
+  });
+}
+
+// When renaming a kid, rewrite their history entries + move per-kid keys
+function migrateKidName(oldName, newName) {
+  // 1. History entries
+  const h = Storage.loadHistory();
+  h.forEach(e => { if (e.childName === oldName) e.childName = newName; });
+  Storage.saveHistory(h);
+  history = Storage.loadHistory();
+
+  // 2. Per-kid maps: unlockedAchievements, gemBalance, purchasedFreezes
+  const PER_KID_KEYS = ['unlockedAchievements', 'gemBalance', 'purchasedFreezes'];
+  PER_KID_KEYS.forEach(key => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const map = JSON.parse(raw);
+      if (map[oldName] !== undefined) {
+        map[newName] = map[oldName];
+        delete map[oldName];
+        localStorage.setItem(key, JSON.stringify(map));
+      }
+    } catch {}
+  });
+  if (typeof Sync !== 'undefined') Sync.push();
+}
+
 // === Init ===
 
 function init() {
@@ -517,6 +896,8 @@ function init() {
   setupDarkModeListener();
   setupScrollFade();
   setupSync();
+  setupBackfill();
+  setupSettings();
 
   // Register service worker for PWA/offline support
   if ('serviceWorker' in navigator) {

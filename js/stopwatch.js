@@ -45,16 +45,35 @@ function formatWeeklyTotal(time) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-// Streak calculation using purchased freezes (from gems) + 2 starter freezes
-function currentStreak(exerciseDayKeys, freezesAvailable) {
+// Build a set of "YYYY-MM-DD" keys for every day covered by any vacation range
+function buildVacationDaySet(vacations) {
+  const set = new Set();
+  if (!vacations) return set;
+  for (const v of vacations) {
+    if (!v || !v.start || !v.end) continue;
+    const start = startOfDay(new Date(v.start));
+    const end   = startOfDay(new Date(v.end));
+    if (isNaN(start) || isNaN(end) || end < start) continue;
+    let d = start;
+    for (let i = 0; i < 400 && d <= end; i++) {
+      set.add(dateKey(d));
+      d = addDays(d, 1);
+    }
+  }
+  return set;
+}
+
+// Streak calculation: vacation days are skipped (don't break streak, don't add to streak, don't consume freeze)
+function currentStreak(exerciseDayKeys, freezesAvailable, vacationDayKeys) {
   if (exerciseDayKeys.size === 0) return 0;
 
   let freezesLeft = freezesAvailable;
   const today = startOfDay(new Date());
   const todayKey = dateKey(today);
 
+  // Start from today if today has an entry, today is on vacation, or yesterday onward
   let currentDay;
-  if (exerciseDayKeys.has(todayKey)) {
+  if (exerciseDayKeys.has(todayKey) || (vacationDayKeys && vacationDayKeys.has(todayKey))) {
     currentDay = today;
   } else {
     currentDay = addDays(today, -1);
@@ -63,7 +82,9 @@ function currentStreak(exerciseDayKeys, freezesAvailable) {
   let streak = 0;
   for (let i = 0; i < 3650; i++) {
     const key = dateKey(currentDay);
-    if (exerciseDayKeys.has(key)) {
+    if (vacationDayKeys && vacationDayKeys.has(key)) {
+      // Vacation day — skip without consuming a freeze or counting toward streak
+    } else if (exerciseDayKeys.has(key)) {
       streak++;
     } else if (freezesLeft > 0) {
       freezesLeft--;
@@ -83,14 +104,18 @@ function streakInfo(kidName, historyData) {
   const purchasedFreezes = Storage.getPurchasedFreezes(kidName);
   const totalFreezes = 2 + purchasedFreezes;
 
-  const streak = currentStreak(exerciseDayKeys, totalFreezes);
+  // Family-wide vacations
+  const vacations = Storage.loadVacations();
+  const vacationDayKeys = buildVacationDaySet(vacations);
 
-  // Calculate remaining freezes by walking backwards (same logic)
+  const streak = currentStreak(exerciseDayKeys, totalFreezes, vacationDayKeys);
+
+  // Calculate remaining freezes by walking backwards (same logic, respecting vacations)
   const freezeTrackingStart = Storage.ensureFreezeTrackingStart();
   const today = startOfDay(new Date());
   const todayKey = dateKey(today);
 
-  const candidateStartDay = exerciseDayKeys.has(todayKey)
+  const candidateStartDay = (exerciseDayKeys.has(todayKey) || vacationDayKeys.has(todayKey))
     ? today
     : addDays(today, -1);
 
@@ -101,7 +126,9 @@ function streakInfo(kidName, historyData) {
     let currentDay = candidateStartDay;
     for (let i = 0; i < 3650 && currentDay >= freezeStartDay; i++) {
       const key = dateKey(currentDay);
-      if (exerciseDayKeys.has(key)) {
+      if (vacationDayKeys.has(key)) {
+        // skip
+      } else if (exerciseDayKeys.has(key)) {
         // no change
       } else if (freezesLeft > 0) {
         freezesLeft--;
@@ -112,5 +139,8 @@ function streakInfo(kidName, historyData) {
     }
   }
 
-  return { streak, freezesLeft: Math.max(0, freezesLeft) };
+  // Is today itself a vacation day?
+  const onVacation = vacationDayKeys.has(todayKey);
+
+  return { streak, freezesLeft: Math.max(0, freezesLeft), onVacation };
 }

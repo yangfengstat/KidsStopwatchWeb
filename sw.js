@@ -1,5 +1,5 @@
 // Service Worker for offline PWA support
-const CACHE_NAME = 'kids-stopwatch-v3';
+const CACHE_NAME = 'kids-stopwatch-v4';
 const ASSETS = [
   '/',
   '/index.html',

@@ -40,7 +40,7 @@ function renderWeeklyGrid(history, kids) {
 
     card.innerHTML = `
       <div class="weekly-card-name">
-        <div class="color-dot" style="background: ${kid.color}; opacity: 0.8"></div>
+        <span class="weekly-card-avatar">${kid.avatar || '⭐'}</span>
         <span>${kid.name}</span>
       </div>
       <div class="weekly-card-time">${formatWeeklyTotal(total)}</div>
