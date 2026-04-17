@@ -147,6 +147,7 @@ function renderHistoryList(history, kids, onDelete) {
 
     const row = document.createElement('div');
     row.className = 'history-row';
+    row.dataset.entryId = entry.id;
 
     // Color-coded left accent bar
     row.style.borderLeft = `3px solid ${color.replace(')', ', 0.6)').replace('rgb', 'rgba')}`;
@@ -155,7 +156,7 @@ function renderHistoryList(history, kids, onDelete) {
     row.innerHTML = `
       <div class="history-row-info">
         <h3>${entry.childName}</h3>
-        <p>${time}</p>
+        <p>${time}${entry.backfilled ? ' · added' : ''}</p>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span class="duration-badge" style="background: ${badgeFill}; border-color: ${badgeStroke}; color: ${color}">${formatDuration(entry.duration)}</span>
@@ -164,7 +165,16 @@ function renderHistoryList(history, kids, onDelete) {
     `;
 
     const deleteBtn = row.querySelector('.btn-delete');
-    deleteBtn.addEventListener('click', () => onDelete(i));
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onDelete(i);
+    });
+
+    // Tap the row (outside the delete button) to edit
+    row.addEventListener('click', () => {
+      if (typeof openEditHistory === 'function') openEditHistory(entry.id);
+    });
+    row.style.cursor = 'pointer';
 
     list.appendChild(row);
   }

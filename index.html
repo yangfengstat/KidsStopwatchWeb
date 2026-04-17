@@ -228,6 +228,55 @@
     </div>
   </div>
 
+  <!-- Session Complete Modal -->
+  <div class="modal-backdrop" id="session-complete-backdrop">
+    <div class="modal session-complete-modal" id="session-complete-modal">
+      <div class="session-complete-inner">
+        <div class="session-complete-avatar" id="sc-avatar">🌸</div>
+        <div class="session-complete-kid" id="sc-kid"></div>
+        <div class="session-complete-headline">Great job!</div>
+        <div class="session-complete-duration" id="sc-duration"></div>
+        <div class="session-complete-rewards" id="sc-rewards"></div>
+        <button class="btn-primary-block" id="sc-dismiss">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit History Entry Modal -->
+  <div class="modal-backdrop" id="edit-history-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Session</h2>
+        <button class="modal-close" id="edit-history-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-label">Kid
+          <div class="form-input form-input-readonly" id="edit-history-kid"></div>
+        </div>
+        <div class="form-row">
+          <label class="form-label" style="flex:1">Date
+            <input type="date" id="edit-history-date" class="form-input">
+          </label>
+          <label class="form-label" style="flex:1">Time
+            <input type="time" id="edit-history-time" class="form-input">
+          </label>
+        </div>
+        <div class="form-row">
+          <label class="form-label" style="flex:1">Minutes
+            <input type="number" id="edit-history-minutes" class="form-input" min="0" max="300" step="1">
+          </label>
+          <label class="form-label" style="flex:1">Seconds
+            <input type="number" id="edit-history-seconds" class="form-input" min="0" max="59" step="1">
+          </label>
+        </div>
+        <div class="kid-editor-footer">
+          <button class="btn-danger" id="btn-delete-history">Delete</button>
+          <button class="btn-primary-block" id="btn-save-history">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase Realtime Database (compat SDK — no bundler needed) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
