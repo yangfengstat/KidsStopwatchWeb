@@ -32,7 +32,9 @@ function loadKids() {
       isRunning: prev ? prev.isRunning : false,
       startedAt: prev ? prev.startedAt : null,
       accumulatedTime: prev ? prev.accumulatedTime : 0,
-      clock: null,
+      target: 0,              // target duration in seconds, 0 = none
+      targetPlayed: false,    // whether target-reached chime has played this session
+      repsDay: todayKey(),    // which day's reps are being viewed on this card
       elements: {}
     };
   });
@@ -106,12 +108,31 @@ function renderStopwatchCards() {
         </div>
       </div>
       <div class="time-display">00:00.00</div>
+      <div class="target-progress" data-role="target-progress">
+        <div class="target-progress-fill" data-role="target-fill"></div>
+      </div>
+      <div class="target-row" data-role="target-row">
+        <span class="target-label">🎯 Target</span>
+        <div class="target-options">
+          <button class="target-btn selected" data-target="0">Off</button>
+          <button class="target-btn" data-target="300">5m</button>
+          <button class="target-btn" data-target="600">10m</button>
+          <button class="target-btn" data-target="900">15m</button>
+          <button class="target-btn" data-target="1200">20m</button>
+          <button class="target-btn" data-target="1800">30m</button>
+        </div>
+      </div>
       <div class="button-row">
         <button class="btn btn-primary">&#9654; Start</button>
         <button class="btn btn-done" disabled>&#10003; Done</button>
         <button class="btn btn-reset">Reset</button>
       </div>
       <div class="reps-row">
+        <div class="reps-day-switcher">
+          <button class="reps-day-nav" data-dir="-1" aria-label="Previous day">‹</button>
+          <span class="reps-day-label" data-role="reps-day-label">Today</span>
+          <button class="reps-day-nav" data-dir="1" aria-label="Next day">›</button>
+        </div>
         <div class="reps-line" data-kind="pullups">
           <span class="reps-label">💪 Pull-ups</span>
           <span class="reps-count" data-role="pullups-count">0</span>
@@ -145,6 +166,12 @@ function renderStopwatchCards() {
       btnReset: card.querySelector('.btn-reset'),
       pullupsCount: card.querySelector('[data-role="pullups-count"]'),
       pushupsCount: card.querySelector('[data-role="pushups-count"]'),
+      targetProgress: card.querySelector('[data-role="target-progress"]'),
+      targetFill: card.querySelector('[data-role="target-fill"]'),
+      targetRow: card.querySelector('[data-role="target-row"]'),
+      targetBtns: card.querySelectorAll('.target-btn'),
+      repsDayLabel: card.querySelector('[data-role="reps-day-label"]'),
+      repsDayBtns: card.querySelectorAll('.reps-day-nav'),
     };
 
     // Button styles
@@ -159,21 +186,61 @@ function renderStopwatchCards() {
     sw.elements.btnDone.addEventListener('click', () => doneStopwatch(index));
     sw.elements.btnReset.addEventListener('click', () => resetStopwatch(index));
 
-    // Reps buttons (+/- pullups and pushups for today)
-    card.querySelectorAll('.reps-btn').forEach(btn => {
+    // Target picker
+    sw.elements.targetBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        const kind = btn.dataset.kind;   // "pullups" | "pushups"
-        const op = btn.dataset.op;       // "inc" | "inc5" | "dec"
-        const delta = op === 'inc5' ? 5 : op === 'dec' ? -1 : 1;
-        adjustReps(index, kind, delta);
+        const target = parseInt(btn.dataset.target, 10) || 0;
+        setStopwatchTarget(index, target);
       });
+    });
+
+    // Day switcher for reps
+    sw.elements.repsDayBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dir = parseInt(btn.dataset.dir, 10);
+        shiftRepsDay(index, dir);
+      });
+    });
+
+    // Reps buttons (+/-/+5 with long-press for fast entry on single-step ops)
+    card.querySelectorAll('.reps-btn').forEach(btn => {
+      const kind = btn.dataset.kind;     // "pullups" | "pushups"
+      const op = btn.dataset.op;         // "inc" | "inc5" | "dec"
+      const delta = op === 'inc5' ? 5 : op === 'dec' ? -1 : 1;
+
+      // Tap
+      btn.addEventListener('click', () => adjustReps(index, kind, delta));
+
+      // Long-press auto-repeat (only for single-step +/-1)
+      if (op !== 'inc5') {
+        let holdTimeout = null;
+        let repeatInterval = null;
+        const startHold = (e) => {
+          // Don't start hold for right click or multi-touch
+          if (e.button && e.button !== 0) return;
+          holdTimeout = setTimeout(() => {
+            repeatInterval = setInterval(() => {
+              adjustReps(index, kind, delta);
+            }, 80);
+          }, 450);
+        };
+        const endHold = () => {
+          if (holdTimeout) { clearTimeout(holdTimeout); holdTimeout = null; }
+          if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; }
+        };
+        btn.addEventListener('pointerdown', startHold);
+        btn.addEventListener('pointerup', endHold);
+        btn.addEventListener('pointerleave', endHold);
+        btn.addEventListener('pointercancel', endHold);
+      }
     });
 
     container.appendChild(card);
 
-    // Update streak + reps display
+    // Update streak + reps + target display
     updateStreakDisplay(index);
     updateRepsDisplay(index);
+    updateTargetDisplay(index);
   });
 }
 
@@ -184,16 +251,61 @@ function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Pretty label for a YYYY-MM-DD key relative to today
+function repsDayLabel(dayKey) {
+  const today = todayKey();
+  if (dayKey === today) return 'Today';
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const target = new Date(y, m - 1, d);
+  const now = new Date();
+  const msPerDay = 86400000;
+  const diffDays = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - target) / msPerDay);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays > 1 && diffDays < 7) {
+    return target.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+  return target.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function updateRepsDisplay(index) {
   const sw = stopwatches[index];
-  const reps = Storage.getReps(sw.name, todayKey());
+  const day = sw.repsDay || todayKey();
+  const reps = Storage.getReps(sw.name, day);
   if (sw.elements.pullupsCount) sw.elements.pullupsCount.textContent = reps.pullups;
   if (sw.elements.pushupsCount) sw.elements.pushupsCount.textContent = reps.pushups;
+  if (sw.elements.repsDayLabel) sw.elements.repsDayLabel.textContent = repsDayLabel(day);
+
+  // Disable the "next" button when already at today
+  if (sw.elements.repsDayBtns) {
+    sw.elements.repsDayBtns.forEach(btn => {
+      if (parseInt(btn.dataset.dir, 10) === 1) {
+        btn.disabled = day === todayKey();
+      }
+    });
+  }
+}
+
+function shiftRepsDay(index, dir) {
+  const sw = stopwatches[index];
+  const current = sw.repsDay || todayKey();
+  const [y, m, d] = current.split('-').map(Number);
+  const next = new Date(y, m - 1, d + dir);
+  const nextKey = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`;
+
+  // Don't allow future dates
+  if (nextKey > todayKey()) return;
+  // Don't go more than ~30 days back
+  const today = new Date();
+  const msBack = today - next;
+  if (msBack > 30 * 86400000) return;
+
+  sw.repsDay = nextKey;
+  updateRepsDisplay(index);
 }
 
 function adjustReps(index, kind, delta) {
   const sw = stopwatches[index];
-  const day = todayKey();
+  const day = sw.repsDay || todayKey();
   const current = Storage.getReps(sw.name, day);
   const next = {
     pullups: current.pullups + (kind === 'pullups' ? delta : 0),
@@ -253,6 +365,8 @@ function doneStopwatch(index) {
   const sw = stopwatches[index];
   if (sw.time <= 0) return;
 
+  const savedDuration = sw.time;
+
   // Stop running
   sw.accumulatedTime = sw.time;
   sw.startedAt = null;
@@ -262,7 +376,7 @@ function doneStopwatch(index) {
   const entry = {
     id: generateId(),
     childName: sw.name,
-    duration: sw.time,
+    duration: savedDuration,
     timestamp: new Date().toISOString()
   };
   history.unshift(entry);
@@ -271,26 +385,76 @@ function doneStopwatch(index) {
     renderHistory(history, KIDS, deleteHistoryEntry);
   }
 
-  // Achievements + confetti
+  // Achievements
   const newAchievements = checkAchievements(sw.name, history);
   renderGemBar();
-  if (newAchievements.length > 0) {
+
+  // Streak milestone (independent of achievements)
+  const newInfo = streakInfo(sw.name, history);
+  const prev = prevStreaks[sw.name] || 0;
+  const milestoneHit = newInfo.streak > prev && Confetti.isMilestone(newInfo.streak);
+
+  // Celebrate
+  if (newAchievements.length > 0 || milestoneHit) {
     Confetti.launch();
-    showAchievementToast(sw.name, newAchievements);
-  } else {
-    const newInfo = streakInfo(sw.name, history);
-    const prev = prevStreaks[sw.name] || 0;
-    if (newInfo.streak > prev && Confetti.isMilestone(newInfo.streak)) {
-      Confetti.launch();
-    }
   }
+  showSessionComplete(sw, savedDuration, newAchievements);
 
   // Reset timer
   sw.time = 0;
   sw.accumulatedTime = 0;
+  sw.targetPlayed = false;
 
   updateStopwatchDisplay(index);
   updateStreakDisplay(index);
+  updateTargetDisplay(index);
+}
+
+// === Session Complete celebration ===
+
+function showSessionComplete(sw, durationSeconds, newAchievements) {
+  const backdrop = document.getElementById('session-complete-backdrop');
+  const avatar = document.getElementById('sc-avatar');
+  const kidEl = document.getElementById('sc-kid');
+  const durationEl = document.getElementById('sc-duration');
+  const rewardsEl = document.getElementById('sc-rewards');
+
+  avatar.textContent = sw.avatar || '⭐';
+  avatar.style.background = colorWithAlpha(sw.color, 0.18);
+  avatar.style.borderColor = colorWithAlpha(sw.color, 0.4);
+  kidEl.textContent = sw.name;
+  kidEl.style.color = sw.color;
+  durationEl.textContent = formatDuration(durationSeconds);
+
+  // Rewards
+  rewardsEl.innerHTML = '';
+  if (newAchievements && newAchievements.length > 0) {
+    const totalGems = newAchievements.reduce((sum, a) => sum + a.gems, 0);
+    const achList = newAchievements
+      .map(a => `<div class="sc-ach">${a.icon} ${a.name}</div>`)
+      .join('');
+    rewardsEl.innerHTML = `
+      ${achList}
+      <div class="sc-gems">+${totalGems} 💎</div>
+    `;
+  }
+
+  backdrop.classList.add('visible');
+}
+
+function setupSessionComplete() {
+  const backdrop = document.getElementById('session-complete-backdrop');
+  const dismissBtn = document.getElementById('sc-dismiss');
+  const close = () => backdrop.classList.remove('visible');
+  dismissBtn.addEventListener('click', close);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+  // Auto-dismiss after 4s
+  const observer = new MutationObserver(() => {
+    if (backdrop.classList.contains('visible')) {
+      setTimeout(close, 4000);
+    }
+  });
+  observer.observe(backdrop, { attributes: true, attributeFilter: ['class'] });
 }
 
 function resetStopwatch(index) {
@@ -299,7 +463,9 @@ function resetStopwatch(index) {
   sw.accumulatedTime = 0;
   sw.startedAt = null;
   sw.isRunning = false;
+  sw.targetPlayed = false;
   updateStopwatchDisplay(index);
+  updateTargetDisplay(index);
 }
 
 function ensureTimer() {
@@ -322,6 +488,8 @@ function tick() {
       updateTimeDisplay(i);
       // Done button becomes enabled as soon as time > 0
       if (sw.elements.btnDone) sw.elements.btnDone.disabled = sw.time <= 0;
+      // Countdown progress + chime
+      if (sw.target > 0) updateTargetDisplay(i);
     }
   });
 
@@ -945,6 +1113,86 @@ function setupSettings() {
 }
 
 // When renaming a kid, rewrite their history entries + move per-kid keys
+// === Target / countdown ===
+
+function setStopwatchTarget(index, targetSeconds) {
+  const sw = stopwatches[index];
+  sw.target = targetSeconds;
+  sw.targetPlayed = false;
+  updateTargetDisplay(index);
+}
+
+function updateTargetDisplay(index) {
+  const sw = stopwatches[index];
+  if (!sw.elements.targetRow) return;
+
+  // Update selected state on target buttons
+  sw.elements.targetBtns.forEach(btn => {
+    const t = parseInt(btn.dataset.target, 10) || 0;
+    btn.classList.toggle('selected', t === (sw.target || 0));
+    if (t === (sw.target || 0)) {
+      btn.style.background = colorWithAlpha(sw.color, 0.2);
+      btn.style.borderColor = colorWithAlpha(sw.color, 0.5);
+      btn.style.color = sw.color;
+    } else {
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  });
+
+  // Progress bar
+  const bar = sw.elements.targetProgress;
+  const fill = sw.elements.targetFill;
+  if (!bar || !fill) return;
+
+  if (!sw.target || sw.target <= 0) {
+    bar.classList.remove('visible');
+    return;
+  }
+  bar.classList.add('visible');
+  const pct = Math.min(100, (sw.time / sw.target) * 100);
+  fill.style.width = pct + '%';
+  fill.style.background = sw.time >= sw.target
+    ? 'linear-gradient(90deg, #34c759, #2aa74b)'
+    : `linear-gradient(90deg, ${sw.color}, ${colorWithAlpha(sw.color, 0.75)})`;
+
+  // Target reached chime (once per session)
+  if (sw.time >= sw.target && !sw.targetPlayed && sw.isRunning) {
+    sw.targetPlayed = true;
+    playTargetChime();
+    // Haptic on devices that support it
+    if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+  }
+}
+
+// Short pleasant chime via Web Audio (no external asset)
+let _audioCtx = null;
+function playTargetChime() {
+  try {
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    // Two-tone major-third rise: G5 → B5
+    [
+      { freq: 784, start: 0,    dur: 0.18 },
+      { freq: 988, start: 0.12, dur: 0.35 },
+    ].forEach(({ freq, start, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + start);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + start);
+      osc.stop(now + start + dur + 0.02);
+    });
+  } catch (e) { /* audio unavailable, ignore */ }
+}
+
 function migrateKidName(oldName, newName) {
   // 1. History entries
   const h = Storage.loadHistory();
@@ -969,6 +1217,82 @@ function migrateKidName(oldName, newName) {
   if (typeof Sync !== 'undefined') Sync.push();
 }
 
+// === Edit History Entry ===
+
+let editingHistoryId = null;
+
+function openEditHistory(entryId) {
+  const entry = history.find(e => e.id === entryId);
+  if (!entry) return;
+  editingHistoryId = entryId;
+
+  const backdrop = document.getElementById('edit-history-backdrop');
+  const kidEl = document.getElementById('edit-history-kid');
+  const dateInput = document.getElementById('edit-history-date');
+  const timeInput = document.getElementById('edit-history-time');
+  const minsInput = document.getElementById('edit-history-minutes');
+  const secsInput = document.getElementById('edit-history-seconds');
+
+  kidEl.textContent = entry.childName;
+  const ts = new Date(entry.timestamp);
+  dateInput.value = `${ts.getFullYear()}-${String(ts.getMonth()+1).padStart(2,'0')}-${String(ts.getDate()).padStart(2,'0')}`;
+  timeInput.value = `${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}`;
+  const totalSeconds = Math.round(entry.duration);
+  minsInput.value = Math.floor(totalSeconds / 60);
+  secsInput.value = totalSeconds % 60;
+
+  backdrop.classList.add('visible');
+}
+
+function setupEditHistory() {
+  const backdrop = document.getElementById('edit-history-backdrop');
+  const closeBtn = document.getElementById('edit-history-close');
+  const saveBtn = document.getElementById('btn-save-history');
+  const deleteBtn = document.getElementById('btn-delete-history');
+
+  const close = () => { backdrop.classList.remove('visible'); editingHistoryId = null; };
+  closeBtn.addEventListener('click', close);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
+
+  saveBtn.addEventListener('click', () => {
+    if (!editingHistoryId) return;
+    const entry = history.find(e => e.id === editingHistoryId);
+    if (!entry) { close(); return; }
+
+    const date = document.getElementById('edit-history-date').value;
+    const time = document.getElementById('edit-history-time').value;
+    const mins = parseInt(document.getElementById('edit-history-minutes').value, 10) || 0;
+    const secs = parseInt(document.getElementById('edit-history-seconds').value, 10) || 0;
+
+    const duration = mins * 60 + secs;
+    if (duration <= 0) { alert('Duration must be greater than zero.'); return; }
+    const ts = new Date(`${date}T${time || '12:00'}:00`);
+    if (isNaN(ts)) { alert('Invalid date/time.'); return; }
+
+    entry.duration = duration;
+    entry.timestamp = ts.toISOString();
+    Storage.saveHistory(history);
+    history = Storage.loadHistory();
+
+    // Recompute achievements and streaks since times changed
+    checkAchievements(entry.childName, history);
+    renderGemBar();
+    stopwatches.forEach((_, i) => updateStreakDisplay(i));
+    renderHistory(history, KIDS, deleteHistoryEntry);
+
+    close();
+  });
+
+  deleteBtn.addEventListener('click', () => {
+    if (!editingHistoryId) return;
+    const idx = history.findIndex(e => e.id === editingHistoryId);
+    if (idx >= 0) {
+      deleteHistoryEntry(idx);
+    }
+    close();
+  });
+}
+
 // === Init ===
 
 function init() {
@@ -980,6 +1304,8 @@ function init() {
   setupSync();
   setupBackfill();
   setupSettings();
+  setupSessionComplete();
+  setupEditHistory();
 
   // Register service worker for PWA/offline support
   if ('serviceWorker' in navigator) {
