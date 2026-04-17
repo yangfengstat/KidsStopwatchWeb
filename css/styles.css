@@ -181,29 +181,39 @@ body {
   transition: background 0.3s;
 }
 
-/* === Sync Modal === */
+/* === Modals === */
 .modal-backdrop {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 200;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
 }
 .modal-backdrop.visible {
   display: flex;
 }
 
 .modal {
-  background: var(--card-bg);
+  background: #ffffff;
   border-radius: 22px;
   width: 100%;
   max-width: 380px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45);
   overflow: hidden;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
 }
+
+@media (prefers-color-scheme: dark) {
+  .modal { background: #1c1c1e; }
+}
+[data-theme="dark"] .modal { background: #1c1c1e; }
 
 .modal-header {
   display: flex;
@@ -633,6 +643,79 @@ body {
   border: 1.5px solid transparent;
   font-size: 1.2rem;
   line-height: 1;
+}
+
+/* === Reps row on stopwatch cards === */
+.reps-row {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(128,128,128,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reps-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.reps-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+  min-width: 78px;
+}
+.reps-count {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+  text-align: left;
+}
+.reps-buttons {
+  display: flex;
+  gap: 4px;
+}
+.reps-btn {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1.2px solid rgba(128,128,128,0.25);
+  background: rgba(128,128,128,0.08);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s;
+}
+.reps-btn:hover { background: rgba(128,128,128,0.15); }
+.reps-btn:active { transform: scale(0.92); }
+.reps-btn-wide { min-width: 38px; }
+
+/* === Weekly-card reps line === */
+.weekly-card-reps {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(128,128,128,0.2);
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* === Form divider in modal === */
+.form-divider {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin: 8px 0;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(128,128,128,0.25);
 }
 
 /* === History tab "Add past session" button === */

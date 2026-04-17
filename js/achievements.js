@@ -31,6 +31,26 @@ const ACHIEVEMENT_DEFS = [
   { id: 'single_10m', cat: 'single',  icon: '🎯', name: 'Dedicated',        desc: '10 min in one session',gems: 10, stat: 'longestSession', target: 600,  check: (s) => s.longestSession >= 600 },
   { id: 'single_15m', cat: 'single',  icon: '🎯', name: 'Persistent',       desc: '15 min in one session',gems: 15, stat: 'longestSession', target: 900,  check: (s) => s.longestSession >= 900 },
   { id: 'single_30m', cat: 'single',  icon: '🏆', name: 'Marathon Runner',  desc: '30 min in one session',gems: 30, stat: 'longestSession', target: 1800, check: (s) => s.longestSession >= 1800 },
+
+  // Pull-up lifetime totals
+  { id: 'pu_first',   cat: 'reps',    icon: '💪', name: 'First Pull-up',    desc: '1 pull-up lifetime',    gems: 5,  stat: 'totalPullups',    target: 1,    check: (s) => s.totalPullups    >= 1 },
+  { id: 'pu_10',      cat: 'reps',    icon: '💪', name: 'Ten Up',           desc: '10 pull-ups lifetime',  gems: 10, stat: 'totalPullups',    target: 10,   check: (s) => s.totalPullups    >= 10 },
+  { id: 'pu_50',      cat: 'reps',    icon: '💪', name: 'Fifty Up',         desc: '50 pull-ups lifetime',  gems: 20, stat: 'totalPullups',    target: 50,   check: (s) => s.totalPullups    >= 50 },
+  { id: 'pu_100',     cat: 'reps',    icon: '🏋️', name: 'Century Pulls',   desc: '100 pull-ups lifetime', gems: 40, stat: 'totalPullups',    target: 100,  check: (s) => s.totalPullups    >= 100 },
+  { id: 'pu_500',     cat: 'reps',    icon: '🏆', name: 'Pull-up Pro',      desc: '500 pull-ups lifetime', gems: 80, stat: 'totalPullups',    target: 500,  check: (s) => s.totalPullups    >= 500 },
+
+  // Push-up lifetime totals
+  { id: 'po_first',   cat: 'reps',    icon: '💪', name: 'First Push-up',    desc: '1 push-up lifetime',    gems: 5,  stat: 'totalPushups',    target: 1,    check: (s) => s.totalPushups    >= 1 },
+  { id: 'po_50',      cat: 'reps',    icon: '💪', name: 'Fifty Down',       desc: '50 push-ups lifetime',  gems: 10, stat: 'totalPushups',    target: 50,   check: (s) => s.totalPushups    >= 50 },
+  { id: 'po_250',     cat: 'reps',    icon: '🏋️', name: 'Quarter-K Push',  desc: '250 push-ups lifetime', gems: 25, stat: 'totalPushups',    target: 250,  check: (s) => s.totalPushups    >= 250 },
+  { id: 'po_500',     cat: 'reps',    icon: '🏆', name: 'Half-K Club',      desc: '500 push-ups lifetime', gems: 45, stat: 'totalPushups',    target: 500,  check: (s) => s.totalPushups    >= 500 },
+  { id: 'po_1000',    cat: 'reps',    icon: '👑', name: 'Push-up Legend',   desc: '1000 push-ups lifetime',gems: 90, stat: 'totalPushups',    target: 1000, check: (s) => s.totalPushups    >= 1000 },
+
+  // Single-day bests
+  { id: 'pu_day_5',   cat: 'reps',    icon: '⚡', name: 'Pull-up Burst',    desc: '5 pull-ups in a day',   gems: 10, stat: 'bestDayPullups',  target: 5,    check: (s) => s.bestDayPullups  >= 5 },
+  { id: 'pu_day_15',  cat: 'reps',    icon: '⚡', name: 'Pull-up Power',    desc: '15 pull-ups in a day',  gems: 25, stat: 'bestDayPullups',  target: 15,   check: (s) => s.bestDayPullups  >= 15 },
+  { id: 'po_day_25',  cat: 'reps',    icon: '⚡', name: 'Push-up Sprint',   desc: '25 push-ups in a day',  gems: 15, stat: 'bestDayPushups',  target: 25,   check: (s) => s.bestDayPushups  >= 25 },
+  { id: 'po_day_50',  cat: 'reps',    icon: '⚡', name: 'Push-up Blast',    desc: '50 push-ups in a day',  gems: 30, stat: 'bestDayPushups',  target: 50,   check: (s) => s.bestDayPushups  >= 50 },
 ];
 
 // Return a human-readable "X away" hint for a locked achievement
@@ -50,6 +70,12 @@ function getProgressHint(ach, stats) {
     const hrs = (remaining / 3600).toFixed(1).replace(/\.0$/, '');
     return `${hrs} more hr${hrs === '1' ? '' : 's'}`;
   }
+  if (ach.stat === 'totalPullups' || ach.stat === 'bestDayPullups') {
+    return `${remaining} more pull-up${remaining === 1 ? '' : 's'}`;
+  }
+  if (ach.stat === 'totalPushups' || ach.stat === 'bestDayPushups') {
+    return `${remaining} more push-up${remaining === 1 ? '' : 's'}`;
+  }
   return null;
 }
 
@@ -58,6 +84,7 @@ const CATEGORY_LABELS = {
   session: '⭐ Sessions',
   time: '⏱️ Total Time',
   single: '🎯 Single Session',
+  reps: '💪 Pull-ups & Push-ups',
 };
 
 // Compute stats for a kid from history
@@ -67,11 +94,29 @@ function computeKidStats(kidName, historyData) {
   const totalTime = entries.reduce((sum, e) => sum + e.duration, 0);
   const longestSession = entries.reduce((max, e) => Math.max(max, e.duration), 0);
   const info = streakInfo(kidName, historyData);
+
+  // Rep stats from exerciseCounts
+  const allReps = Storage.loadAllExerciseCounts();
+  const kidReps = allReps[kidName] || {};
+  let totalPullups = 0, totalPushups = 0, bestDayPullups = 0, bestDayPushups = 0;
+  for (const day in kidReps) {
+    const r = kidReps[day] || {};
+    const pu = r.pullups || 0, po = r.pushups || 0;
+    totalPullups += pu;
+    totalPushups += po;
+    if (pu > bestDayPullups) bestDayPullups = pu;
+    if (po > bestDayPushups) bestDayPushups = po;
+  }
+
   return {
     streak: info.streak,
     sessions,
     totalTime,
     longestSession,
+    totalPullups,
+    totalPushups,
+    bestDayPullups,
+    bestDayPushups,
   };
 }
 
@@ -178,7 +223,7 @@ function renderAchievementsView(kids, historyData) {
     section.appendChild(progress);
 
     // Achievement grid by category
-    const categories = ['streak', 'session', 'time', 'single'];
+    const categories = ['streak', 'session', 'time', 'single', 'reps'];
     for (const cat of categories) {
       const catAchs = ACHIEVEMENT_DEFS.filter(a => a.cat === cat);
       const catDiv = document.createElement('div');
