@@ -105,12 +105,11 @@ function renderStopwatchCards() {
           </div>
         </div>
       </div>
-      <div class="clock-container"></div>
       <div class="time-display">00:00.00</div>
       <div class="button-row">
         <button class="btn btn-primary">&#9654; Start</button>
+        <button class="btn btn-done" disabled>&#10003; Done</button>
         <button class="btn btn-reset">Reset</button>
-        <button class="btn btn-add">+ 15s</button>
       </div>
       <div class="reps-row">
         <div class="reps-line" data-kind="pullups">
@@ -134,24 +133,6 @@ function renderStopwatchCards() {
       </div>
     `;
 
-    // Create clock
-    const clock = createClock(sw.color);
-    const clockContainer = card.querySelector('.clock-container');
-    clockContainer.appendChild(clock.svg);
-
-    // Apply dial opacity classes via inline styles
-    const dialFill = clock.svg.querySelector('.dial-fill');
-    const dialStroke = clock.svg.querySelector('.dial-stroke');
-    if (dialFill) dialFill.style.opacity = dark ? 0.18 : 0.08;
-    if (dialStroke) dialStroke.style.opacity = dark ? 0.5 : 0.3;
-
-    // Label opacity
-    clock.svg.querySelectorAll('.clock-label').forEach(label => {
-      label.style.opacity = dark ? 0.85 : 0.7;
-    });
-
-    sw.clock = clock;
-
     // Store element refs
     sw.elements = {
       card,
@@ -160,8 +141,8 @@ function renderStopwatchCards() {
       streakCount: card.querySelector('.streak-count'),
       freezeCount: card.querySelector('.freeze-count'),
       btnPrimary: card.querySelector('.btn-primary'),
+      btnDone: card.querySelector('.btn-done'),
       btnReset: card.querySelector('.btn-reset'),
-      btnAdd: card.querySelector('.btn-add'),
       pullupsCount: card.querySelector('[data-role="pullups-count"]'),
       pushupsCount: card.querySelector('[data-role="pushups-count"]'),
     };
@@ -173,14 +154,10 @@ function renderStopwatchCards() {
     sw.elements.btnReset.style.border = `1.2px solid ${sw.color.replace(')', ', 0.5)').replace('rgb', 'rgba')}`;
     sw.elements.btnReset.style.color = sw.color;
 
-    sw.elements.btnAdd.style.background = sw.color.replace(')', ', 0.12)').replace('rgb', 'rgba');
-    sw.elements.btnAdd.style.border = `1px solid ${sw.color.replace(')', ', 0.35)').replace('rgb', 'rgba')}`;
-    sw.elements.btnAdd.style.color = sw.color;
-
     // Event listeners
     sw.elements.btnPrimary.addEventListener('click', () => toggleStopwatch(index));
+    sw.elements.btnDone.addEventListener('click', () => doneStopwatch(index));
     sw.elements.btnReset.addEventListener('click', () => resetStopwatch(index));
-    sw.elements.btnAdd.addEventListener('click', () => addTime(index, 15));
 
     // Reps buttons (+/- pullups and pushups for today)
     card.querySelectorAll('.reps-btn').forEach(btn => {
@@ -249,49 +226,68 @@ function colorWithAlpha(color, alpha) {
 
 // === Stopwatch Logic ===
 
+// Toggle running / paused. Does NOT save the session any more —
+// that's what the Done button is for.
 function toggleStopwatch(index) {
   const sw = stopwatches[index];
 
   if (sw.isRunning) {
-    // Pause — record history entry
+    // Pause — keep accumulated time, do not save
     sw.accumulatedTime = sw.time;
     sw.startedAt = null;
     sw.isRunning = false;
-
-    if (sw.time > 0) {
-      const entry = {
-        id: generateId(),
-        childName: sw.name,
-        duration: sw.time,
-        timestamp: new Date().toISOString()
-      };
-      history.unshift(entry);
-      Storage.saveHistory(history);
-      if (document.getElementById('history-view').classList.contains('active')) {
-        renderHistory(history, KIDS, deleteHistoryEntry);
-      }
-
-      // Check for new achievements and show toast + confetti
-      const newAchievements = checkAchievements(sw.name, history);
-      renderGemBar();
-      if (newAchievements.length > 0) {
-        Confetti.launch();
-        showAchievementToast(sw.name, newAchievements);
-      } else {
-        // Still check for streak milestone confetti
-        const newInfo = streakInfo(sw.name, history);
-        const prev = prevStreaks[sw.name] || 0;
-        if (newInfo.streak > prev && Confetti.isMilestone(newInfo.streak)) {
-          Confetti.launch();
-        }
-      }
-    }
   } else {
-    // Start
+    // Start (or resume)
     sw.startedAt = Date.now() - (sw.accumulatedTime * 1000);
     sw.isRunning = true;
     ensureTimer();
   }
+
+  updateStopwatchDisplay(index);
+  updateStreakDisplay(index);
+}
+
+// Finish the session: save to history, fire achievements, reset timer.
+// Works whether the timer is running or paused, as long as time > 0.
+function doneStopwatch(index) {
+  const sw = stopwatches[index];
+  if (sw.time <= 0) return;
+
+  // Stop running
+  sw.accumulatedTime = sw.time;
+  sw.startedAt = null;
+  sw.isRunning = false;
+
+  // Record history entry
+  const entry = {
+    id: generateId(),
+    childName: sw.name,
+    duration: sw.time,
+    timestamp: new Date().toISOString()
+  };
+  history.unshift(entry);
+  Storage.saveHistory(history);
+  if (document.getElementById('history-view').classList.contains('active')) {
+    renderHistory(history, KIDS, deleteHistoryEntry);
+  }
+
+  // Achievements + confetti
+  const newAchievements = checkAchievements(sw.name, history);
+  renderGemBar();
+  if (newAchievements.length > 0) {
+    Confetti.launch();
+    showAchievementToast(sw.name, newAchievements);
+  } else {
+    const newInfo = streakInfo(sw.name, history);
+    const prev = prevStreaks[sw.name] || 0;
+    if (newInfo.streak > prev && Confetti.isMilestone(newInfo.streak)) {
+      Confetti.launch();
+    }
+  }
+
+  // Reset timer
+  sw.time = 0;
+  sw.accumulatedTime = 0;
 
   updateStopwatchDisplay(index);
   updateStreakDisplay(index);
@@ -303,22 +299,6 @@ function resetStopwatch(index) {
   sw.accumulatedTime = 0;
   sw.startedAt = null;
   sw.isRunning = false;
-  updateStopwatchDisplay(index);
-}
-
-function addTime(index, seconds) {
-  const sw = stopwatches[index];
-  sw.accumulatedTime += seconds;
-  if (sw.isRunning) {
-    sw.startedAt -= seconds * 1000;
-  }
-  sw.time = sw.accumulatedTime + (sw.isRunning ? (Date.now() - sw.startedAt) / 1000 - sw.accumulatedTime : 0);
-  // Simpler: just recalculate
-  if (sw.isRunning) {
-    sw.time = (Date.now() - sw.startedAt) / 1000;
-  } else {
-    sw.time = sw.accumulatedTime;
-  }
   updateStopwatchDisplay(index);
 }
 
@@ -340,7 +320,8 @@ function tick() {
   stopwatches.forEach((sw, i) => {
     if (sw.isRunning) {
       updateTimeDisplay(i);
-      updateClock(sw.clock, sw.time);
+      // Done button becomes enabled as soon as time > 0
+      if (sw.elements.btnDone) sw.elements.btnDone.disabled = sw.time <= 0;
     }
   });
 
@@ -357,17 +338,23 @@ function tick() {
 function updateStopwatchDisplay(index) {
   const sw = stopwatches[index];
   updateTimeDisplay(index);
-  updateClock(sw.clock, sw.time);
 
   // Status badge
   sw.elements.statusBadge.textContent = sw.isRunning ? 'Running' : 'Paused';
 
-  // Primary button
-  sw.elements.btnPrimary.innerHTML = sw.isRunning
-    ? '&#10074;&#10074; Pause'
-    : '&#9654; Start';
+  // Primary button label flips between Start / Pause / Resume
+  if (sw.isRunning) {
+    sw.elements.btnPrimary.innerHTML = '&#10074;&#10074; Pause';
+  } else if (sw.time > 0) {
+    sw.elements.btnPrimary.innerHTML = '&#9654; Resume';
+  } else {
+    sw.elements.btnPrimary.innerHTML = '&#9654; Start';
+  }
 
-  // #7: Pulsing glow on running card
+  // Done button: enabled only when there is something to save
+  if (sw.elements.btnDone) sw.elements.btnDone.disabled = sw.time <= 0;
+
+  // Pulsing glow on running card
   if (sw.isRunning) {
     sw.elements.card.classList.add('running');
     sw.elements.card.style.setProperty('--glow-color', colorWithAlpha(sw.color, 0.3));
@@ -375,7 +362,6 @@ function updateStopwatchDisplay(index) {
     sw.elements.card.classList.remove('running');
   }
 
-  // #5: Update page title with running timer
   updatePageTitle();
 }
 
