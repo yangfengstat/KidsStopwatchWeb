@@ -204,6 +204,12 @@ const Sync = (() => {
     if (data.exerciseCounts !== undefined) {
       localStorage.setItem('exerciseCounts', JSON.stringify(data.exerciseCounts));
     }
+    if (data.weeklyGoals !== undefined) {
+      localStorage.setItem('weeklyGoals', JSON.stringify(data.weeklyGoals));
+    }
+    if (data.sessionNotes !== undefined) {
+      // Not a separate key — notes live inside history entries. Ignored.
+    }
   }
 
   /** Read all localStorage keys into a plain object for Firebase. */
@@ -217,6 +223,7 @@ const Sync = (() => {
       kidsConfig:     JSON.parse(localStorage.getItem('kidsConfig')       || '[]'),
       vacations:      JSON.parse(localStorage.getItem('vacations')        || '[]'),
       exerciseCounts: JSON.parse(localStorage.getItem('exerciseCounts')   || '{}'),
+      weeklyGoals:    JSON.parse(localStorage.getItem('weeklyGoals')      || '{}'),
       updatedAt:      Date.now(),
     };
   }

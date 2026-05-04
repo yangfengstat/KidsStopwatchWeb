@@ -8,6 +8,8 @@ const Storage = (() => {
   const KIDS_KEY = 'kidsConfig';
   const VACATIONS_KEY = 'vacations';
   const EXERCISE_COUNTS_KEY = 'exerciseCounts';
+  const THEME_KEY = 'themePreference';
+  const WEEKLY_GOALS_KEY = 'weeklyGoals';
 
   // Default kids if kidsConfig is not set yet
   const DEFAULT_KIDS = [
@@ -177,6 +179,67 @@ const Storage = (() => {
     _sync();
   }
 
+  // --- Theme preference (light/dark/auto) ---
+  function getThemePreference() {
+    return localStorage.getItem(THEME_KEY) || 'auto';
+  }
+  function setThemePreference(pref) {
+    if (pref === 'auto') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, pref);
+    // NOT synced — this is device-specific.
+  }
+
+  // --- Weekly goals (per-kid minute target) ---
+  function loadWeeklyGoals() {
+    return _loadMap(WEEKLY_GOALS_KEY);
+  }
+  function saveWeeklyGoals(map) {
+    _saveMap(WEEKLY_GOALS_KEY, map);
+    _sync();
+  }
+  function getWeeklyGoal(kidName) {
+    const map = _loadMap(WEEKLY_GOALS_KEY);
+    return map[kidName] || 0; // 0 = no goal set
+  }
+  function setWeeklyGoal(kidName, minutes) {
+    const map = _loadMap(WEEKLY_GOALS_KEY);
+    if (minutes > 0) map[kidName] = minutes;
+    else delete map[kidName];
+    _saveMap(WEEKLY_GOALS_KEY, map);
+    _sync();
+  }
+
+  // --- Export / Import ---
+  function exportAll() {
+    const KEYS = [
+      HISTORY_KEY, FREEZE_START_KEY, ACHIEVEMENTS_KEY, GEMS_KEY,
+      PURCHASED_FREEZES_KEY, KIDS_KEY, VACATIONS_KEY, EXERCISE_COUNTS_KEY,
+      WEEKLY_GOALS_KEY,
+    ];
+    const blob = { version: 1, exportedAt: new Date().toISOString() };
+    for (const k of KEYS) {
+      const raw = localStorage.getItem(k);
+      if (raw != null) {
+        try { blob[k] = JSON.parse(raw); } catch { blob[k] = raw; }
+      }
+    }
+    return blob;
+  }
+  function importAll(blob) {
+    if (!blob || typeof blob !== 'object') throw new Error('Invalid backup file.');
+    const KEYS = [
+      HISTORY_KEY, FREEZE_START_KEY, ACHIEVEMENTS_KEY, GEMS_KEY,
+      PURCHASED_FREEZES_KEY, KIDS_KEY, VACATIONS_KEY, EXERCISE_COUNTS_KEY,
+      WEEKLY_GOALS_KEY,
+    ];
+    for (const k of KEYS) {
+      if (blob[k] !== undefined) {
+        localStorage.setItem(k, typeof blob[k] === 'string' ? blob[k] : JSON.stringify(blob[k]));
+      }
+    }
+    _sync();
+  }
+
   // Fire-and-forget sync after any write (Sync module may not be loaded yet on first call)
   function _sync() {
     if (typeof Sync !== 'undefined') Sync.push();
@@ -191,6 +254,9 @@ const Storage = (() => {
     loadKidsConfig, saveKidsConfig,
     loadVacations, saveVacations,
     getReps, setReps, addReps, loadAllExerciseCounts,
+    getThemePreference, setThemePreference,
+    loadWeeklyGoals, saveWeeklyGoals, getWeeklyGoal, setWeeklyGoal,
+    exportAll, importAll,
     DEFAULT_KIDS,
   };
 })();
